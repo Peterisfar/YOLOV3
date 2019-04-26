@@ -67,6 +67,7 @@ class Tester(object):
                 loss_i = self.criterion(net=self.yolov3, p=pred, targets=targets)
                 loss += loss_i.item()
 
+                print(loss)
                 # nms
                 # output : 一个batch中每张图片预测值经过nms后剩下的boxes; shape : [[...], [...], ...]
                 output = non_max_suppression(pred_de, conf_thres=self.conf_threshold, nms_thres=self.nms_threshold)
@@ -131,7 +132,7 @@ if __name__ == "__main__":
     parser.add_argument('--iou_threshold', type=float, default=0.5, help='iou threshold ')
     parser.add_argument('--conf_threshold', type=float, default=0.001, help='threshold for object class confidence')
     parser.add_argument('--nms_threshold', type=float, default=0.5, help='threshold for nms')
-    parser.add_argument('--gpu_id', type=int, default=2, help='gpu id')
+    parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
     opt = parser.parse_args()
 
     Tester(cfg_path=opt.cfg_path,
