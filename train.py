@@ -27,12 +27,12 @@ class Trainer(object):
                         lr_init=0.001,
                         lr_end=10e-6,
                         warm_up_epoch=2,
-                        mix_up=True,
+                        mix_up=False,
                         momentum=0.9,
                         weight_decay=0.005,
                         focal_loss=True,
                         iou_threshold_loss=0.5,
-                        label_smoothing=True,
+                        label_smoothing=False,
                         conf_threshold=0.001,
                         nms_threshold=0.5,
                         gpu_id=0
@@ -67,27 +67,11 @@ class Trainer(object):
                                    momentum=momentum,
                                    weight_decay=weight_decay
                                    )
-        self.warmup_iters = warm_up_epoch * len(self.train_dataloader) # batch的数量
-        self.schedule = self.__make_lr_schedule(warm_up_epoch)
         self.criterion = YoloV3Loss(focal_loss=focal_loss,
                                     iou_threshold_loss=iou_threshold_loss,
                                     label_smoothing=label_smoothing,
                                     )
         self.__load_model_weights(weight_path, resume)
-
-    def __make_lr_schedule(self, warm_up_epoch):
-        """cosine lr shchedule and warm up"""
-        epoch_num = self.epochs - warm_up_epoch if warm_up_epoch > 0 else self.epochs
-        # 计算训练总的迭代次数
-        iter_num = epoch_num * len(self.train_dataloader)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=iter_num-1, eta_min=self.lr_end)
-
-        return scheduler
-
-    def __lr_warmup(self, cur_iter):
-        warmup_lr = self.lr_init / self.warmup_iters
-        for x in self.optimizer.param_groups:
-            x["lr"] = warmup_lr * cur_iter
 
     def __load_model_weights(self, weight_path, resume):
         if resume:
@@ -101,7 +85,7 @@ class Trainer(object):
                 self.best_loss = chkpt['best_loss']
             del chkpt
         else:
-            pre_trained_weight = os.path.join(weight_path, "yolov3.weights")
+            pre_trained_weight = os.path.join(weight_path, "darknet53.conv.74")
             self.yolov3.load_darknet_weights(pre_trained_weight)
 
     def __save_model_weights(self, loss, epoch):
@@ -123,17 +107,11 @@ class Trainer(object):
     def train(self):
         t = time.time()
         for epoch in range(self.start_epoch, self.epochs):
+            self.yolov3.train()
             self.optimizer.zero_grad()
             for i, (imgs, targets) in enumerate(self.train_dataloader):
                 imgs = imgs.to(self.device)
                 targets = targets.to(self.device)
-
-                #  update schedule
-                cur_iter = i + 1 + epoch * len(self.train_dataloader)
-                if epoch < self.warmup_epoch:
-                    self.__lr_warmup(cur_iter)
-                else:
-                    self.schedule.step()
 
                 pred = self.yolov3(imgs)
                 loss = self.criterion(net=self.yolov3, p=pred, targets=targets)
@@ -177,22 +155,22 @@ if __name__ == "__main__":
     parser.add_argument('--img_size', type=int, default=416, help='image size')
     parser.add_argument('--resume', action='store_true',default=False,  help='resume training flag')
     parser.add_argument('--epochs', type=int, default=300, help='number of epochs')
-    parser.add_argument('--batch_size', type=int, default=16, help='batch size')
-    parser.add_argument('--multi_scale_train', action='store_false', default=True, help='multi scale train flag')
-    parser.add_argument('--num_works', type=int, default=4, help='number of pytorch dataloader workers')
+    parser.add_argument('--batch_size', type=int, default=8, help='batch size')
+    parser.add_argument('--multi_scale_train', action='store_false', default=False, help='multi scale train flag')
+    parser.add_argument('--num_works', type=int, default=0, help='number of pytorch dataloader workers')
     parser.add_argument('--augment', action='store_false', default=True, help='data augment flag')
-    parser.add_argument('--lr_init', type=float, default=0.001, help='learning rate at start')
+    parser.add_argument('--lr_init', type=float, default=0.0001, help='learning rate at start')
     parser.add_argument('--lr_end', type=float, default=10e-6, help='learning rate at end')
     parser.add_argument('--warm_up_epoch', type=int, default=2, help='the epochs for lr warm up')
-    parser.add_argument('--mix_up', action='store_false', default=True, help='mix up flag')
+    parser.add_argument('--mix_up', action='store_false', default=False, help='mix up flag')
     parser.add_argument('--momentum', type=float, default=0.9, help='optimizer momentum')
     parser.add_argument('--weight_decay', type=float, default=0.0005, help='optimizer weight decay')
-    parser.add_argument('--focal_loss', action='store_false', default=True, help='focal loss flag')
+    parser.add_argument('--focal_loss', action='store_false', default=False, help='focal loss flag')
     parser.add_argument('--iou_threshold_loss', type=float, default=0.5, help='iou threshold in calculate loss')
-    parser.add_argument('--label_smoothing', action='store_false', default=True, help='label smoothing flag')
+    parser.add_argument('--label_smoothing', action='store_false', default=False, help='label smoothing flag')
     parser.add_argument('--conf_threshold', type=float, default=0.001, help='threshold for object class confidence')
     parser.add_argument('--nms_threshold', type=float, default=0.5, help='threshold for nms')
-    parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
+    parser.add_argument('--gpu_id', type=int, default=3, help='gpu id')
     opt = parser.parse_args()
 
     Trainer(cfg_path=opt.cfg_path,

@@ -40,7 +40,7 @@ class VocDataset(Dataset):
         img, label = self.__creat_label(img_org, bboxes_org)
 
         # img [H, W, C] ---> [C, H, W]
-        return torch.from_numpy(img).permute(2,0,1).contiguous().float(), torch.from_numpy(label).float()
+        return torch.from_numpy(img), torch.from_numpy(label).float()
 
     def __load_annotations(self, anno_type):
         """加载annotation.txt中所有标签文件"""
@@ -67,7 +67,6 @@ class VocDataset(Dataset):
         img_path = anno[0]
         img = cv2.imread(img_path)  # H*W*C and C=BGR
         assert img is not None, 'File Not Found ' + img_path
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32) # BGR -> RGB
         bboxes = np.array([list(map(float, box.split(','))) for box in anno[1:]])
         if self.augment:
             img, bboxes = dataAug.RandomHorizontalFilp()(np.copy(img), np.copy(bboxes))
@@ -85,8 +84,10 @@ class VocDataset(Dataset):
         :return: img, label
         """
         # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32)
-        img /= 255.0 # 图片归一化
-        bboxes[:, :4] = tools.xyxy2xywh(bboxes[:, :4]) / self.img_size # 坐标转化以及归一化
+        img = img[:, :, ::-1].transpose(2, 0, 1)
+        img = np.ascontiguousarray(img, dtype=np.float32)
+        img /= 255.0  # 图片归一化
+        bboxes[:, :4] = tools.xyxy2xywh(bboxes[:, :4]) / self.img_size  # 坐标转化以及归一化
 
         return img, bboxes
 
