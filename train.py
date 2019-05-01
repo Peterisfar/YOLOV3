@@ -128,7 +128,7 @@ class Trainer(object):
                 self.optimizer.zero_grad()
 
                 # Update running mean of tracked metrics
-                mloss = (mloss * i + loss_items) / (i + 1)
+                mloss = (mloss * i + loss_items) / (i + 1) # 平均值
 
                 # Print batch results
                 s = ('%8s%12s' + '%10.3g' * 7) % (
@@ -143,7 +143,8 @@ class Trainer(object):
                     print("multi_scale_img_size : {}".format(self.train_dataset.img_size))
 
             print('*'*20+"Validate"+'*'*20)
-            results = Tester(batch_size=16,
+            with torch.no_grad():
+                results = Tester(batch_size=16,
                              model=self.yolov3,
                              iou_threshold=self.iou_threshold_loss,
                              conf_threshold=self.conf_threshold,
@@ -177,7 +178,7 @@ if __name__ == "__main__":
     parser.add_argument('--focal_loss', action='store_false', default=False, help='focal loss flag')
     parser.add_argument('--iou_threshold_loss', type=float, default=0.5, help='iou threshold in calculate loss')
     parser.add_argument('--label_smoothing', action='store_false', default=False, help='label smoothing flag')
-    parser.add_argument('--conf_threshold', type=float, default=0.001, help='threshold for object class confidence')
+    parser.add_argument('--conf_threshold', type=float, default=0.01, help='threshold for object class confidence')
     parser.add_argument('--nms_threshold', type=float, default=0.5, help='threshold for nms')
     parser.add_argument('--gpu_id', type=int, default=3, help='gpu id')
     opt = parser.parse_args()

@@ -15,8 +15,8 @@ class Tester(object):
                      gpu_id=0,
                      anno_file_type="test",
                      batch_size=1,
-                     img_size=416,
-                     num_workers=4,
+                     img_size=544,
+                     num_workers=0,
                      iou_threshold=0.5,
                      conf_threshold=0.01,
                      nms_threshold=0.5,
@@ -58,7 +58,7 @@ class Tester(object):
         loss, precision, recall, f1, mp, mr, mAP, mf1 = 0., 0., 0., 0., 0., 0., 0., 0.
         stats, ap, ap_class= [], [], []
         with torch.no_grad():
-            for i, (imgs, targets) in enumerate(tqdm(self.test_dataloader, desc='Computing mAp')):
+            for batch_i, (imgs, targets) in enumerate(tqdm(self.test_dataloader, desc='Computing mAp')):
                 imgs = imgs.to(self.device)
                 targets = targets.to(self.device)
 
@@ -67,27 +67,26 @@ class Tester(object):
                 loss_i , _= self.criterion(net=self.yolov3, p=pred, targets=targets)
                 loss += loss_i.item()
 
-                print(loss)
                 # nms
                 # output : 一个batch中每张图片预测值经过nms后剩下的boxes; shape : [[...], [...], ...]
                 output = non_max_suppression(pred_de, conf_thres=self.conf_threshold, nms_thres=self.nms_threshold)
 
-                for i, out in enumerate(output):
-                    labels = targets[targets[:, -1] == i, :-1]  # 取出一个batch大小里第i张图片所有的标签
+                for si, out in enumerate(output):
+                    labels = targets[targets[:, -1] == si, :-1]  # 取出一个batch大小里第i张图片所有的标签
                     nl = len(labels)
                     tcls = labels[:, 4].tolist() if nl else [] # 所有标签对用的类别，shape为N*1
                     seen += 1
                     if out is None: # 预测box全部经nms过滤
                         if nl:
                             stats.append(([], torch.Tensor(), torch.Tensor(), tcls))
-                            continue
+                        continue
                     else:
                         correct = [0] * len(out)
                         if nl:
                             detected = []
-                            tbox = xywh2xyxy(labels[:, :4])
+                            tbox = xywh2xyxy(labels[:, :4]) * self.img_size
 
-                            for j, (*out_box, out_conf, out_cls_conf, out_cls) in enumerate(out):
+                            for i, (*out_box, out_conf, out_cls_conf, out_cls) in enumerate(out):
                                 if len(detected) == nl:
                                     break
 
@@ -97,10 +96,10 @@ class Tester(object):
                                 iou, bi = bbox_iou(out_box, tbox).max(0)
 
                                 if iou > self.iou_threshold and bi not in detected:
-                                    correct[j] = 1
+                                    correct[i] = 1
                                     detected.append(bi)
                             # stats : (correct, conf, cls, tcls)
-                            stats.append((correct, out[:, 4].cpu(), out[:, 6].cpu(), tcls))
+                        stats.append((correct, out[:, 4].cpu(), out[:, 6].cpu(), tcls))
 
         stats = [np.concatenate(x, 0) for x in list(zip(*stats))]  # zip(*)进行解压
         nt = np.bincount(stats[3].astype(np.int64), minlength=self.test_dataset.num_classes) # 统计target中每个类别出现的次数
