@@ -10,15 +10,15 @@ import argparse
 
 
 class Tester(object):
-    def __init__(self,cfg_path,
-                     weight_path,
+    def __init__(self,cfg_path=None,
+                     weight_path=None,
                      gpu_id=0,
                      anno_file_type="test",
                      batch_size=1,
                      img_size=416,
                      num_workers=4,
                      iou_threshold=0.5,
-                     conf_threshold=0.001,
+                     conf_threshold=0.01,
                      nms_threshold=0.5,
                      model=None
                  ):
@@ -64,7 +64,7 @@ class Tester(object):
 
                 pred_de, pred = self.yolov3(imgs)
 
-                loss_i = self.criterion(net=self.yolov3, p=pred, targets=targets)
+                loss_i , _= self.criterion(net=self.yolov3, p=pred, targets=targets)
                 loss += loss_i.item()
 
                 print(loss)

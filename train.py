@@ -62,6 +62,8 @@ class Trainer(object):
                                            collate_fn=self.train_dataset.collate_fn
                                            )
         self.yolov3 = Darknet(cfg_path=cfg_path, img_size=img_size).to(self.device)
+        self.__load_model_weights(weight_path, resume)
+
         self.optimizer = optim.SGD(self.yolov3.parameters(),
                                    lr=lr_init,
                                    momentum=momentum,
@@ -71,7 +73,7 @@ class Trainer(object):
                                     iou_threshold_loss=iou_threshold_loss,
                                     label_smoothing=label_smoothing,
                                     )
-        self.__load_model_weights(weight_path, resume)
+
 
     def __load_model_weights(self, weight_path, resume):
         if resume:
@@ -106,25 +108,32 @@ class Trainer(object):
 
     def train(self):
         t = time.time()
+        nb = len(self.train_dataloader)
         for epoch in range(self.start_epoch, self.epochs):
             self.yolov3.train()
             self.optimizer.zero_grad()
+
+            mloss = torch.zeros(5).to(self.device)  # mean losses
             for i, (imgs, targets) in enumerate(self.train_dataloader):
                 imgs = imgs.to(self.device)
                 targets = targets.to(self.device)
+                nt = len(targets)
 
                 pred = self.yolov3(imgs)
-                loss = self.criterion(net=self.yolov3, p=pred, targets=targets)
-                loss.backward()
-                self.optimizer.step()
 
-                # print
-                s = ("Epoch : {}/{} | Batch : {}/{} | loss : {} | time : {}".format(epoch,
-                                                                                self.epochs-1,
-                                                                                 i,
-                                                                                len(self.train_dataloader) - 1,
-                                                                                 loss.item(),
-                                                                                 time.time()-t))
+                loss, loss_items = self.criterion(net=self.yolov3, p=pred, targets=targets)
+                loss.backward()
+
+                self.optimizer.step()
+                self.optimizer.zero_grad()
+
+                # Update running mean of tracked metrics
+                mloss = (mloss * i + loss_items) / (i + 1)
+
+                # Print batch results
+                s = ('%8s%12s' + '%10.3g' * 7) % (
+                    '%g/%g' % (epoch, self.epochs - 1),
+                    '%g/%g' % (i, nb - 1), *mloss, nt, time.time() - t)
                 print(s)
                 t = time.time()
 
@@ -134,7 +143,7 @@ class Trainer(object):
                     print("multi_scale_img_size : {}".format(self.train_dataset.img_size))
 
             print('*'*20+"Validate"+'*'*20)
-            results = Tester(batch_size=1,
+            results = Tester(batch_size=16,
                              model=self.yolov3,
                              iou_threshold=self.iou_threshold_loss,
                              conf_threshold=self.conf_threshold,
@@ -155,7 +164,7 @@ if __name__ == "__main__":
     parser.add_argument('--img_size', type=int, default=416, help='image size')
     parser.add_argument('--resume', action='store_true',default=False,  help='resume training flag')
     parser.add_argument('--epochs', type=int, default=300, help='number of epochs')
-    parser.add_argument('--batch_size', type=int, default=8, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=16, help='batch size')
     parser.add_argument('--multi_scale_train', action='store_false', default=False, help='multi scale train flag')
     parser.add_argument('--num_works', type=int, default=0, help='number of pytorch dataloader workers')
     parser.add_argument('--augment', action='store_false', default=True, help='data augment flag')
@@ -195,15 +204,3 @@ if __name__ == "__main__":
             conf_threshold=opt.conf_threshold,
             nms_threshold=opt.nms_threshold,
             gpu_id=opt.gpu_id).train()
-
-
-
-
-
-
-
-
-
-
-
-

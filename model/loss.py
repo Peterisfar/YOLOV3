@@ -64,7 +64,7 @@ class YoloV3Loss(object):
             lconf += (k * 0.84) * BCE(pi0[..., 4], tconf)  # obj_conf loss
         loss = lxy + lwh + lconf + lcls
 
-        return loss
+        return loss, torch.cat((lxy, lwh, lconf, lcls, loss)).detach()
 
     def __build_targets(self, net, targets):
         """
