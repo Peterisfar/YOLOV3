@@ -47,10 +47,11 @@ def wh_iou(box1, box2):
 
 
 def bbox_iou(box1, box2, x1y1x2y2=True):
-    # Returns the IoU of box1 to box2. box1 is 4, box2 is nx4
-    box2 = box2.t()
-
+    """
+    numpy version iou, and use for nms
+    """
     # Get the coordinates of bounding boxes
+    box2 = box2.T
     if x1y1x2y2:
         # x1, y1, x2, y2 = box1
         b1_x1, b1_y1, b1_x2, b1_y2 = box1[0], box1[1], box1[2], box1[3]
@@ -63,8 +64,8 @@ def bbox_iou(box1, box2, x1y1x2y2=True):
         b2_y1, b2_y2 = box2[1] - box2[3] / 2, box2[1] + box2[3] / 2
 
     # Intersection area
-    inter_area = (torch.min(b1_x2, b2_x2) - torch.max(b1_x1, b2_x1)).clamp(0) * \
-                 (torch.min(b1_y2, b2_y2) - torch.max(b1_y1, b2_y1)).clamp(0)
+    inter_area = np.maximum((np.minimum(b1_x2, b2_x2) - np.maximum(b1_x1, b2_x1)), 0.0) * \
+                 np.maximum(np.minimum(b1_y2, b2_y2) - np.maximum(b1_y1, b2_y1), 0.0)
 
     # Union Area
     union_area = ((b1_x2 - b1_x1) * (b1_y2 - b1_y1) + 1e-16) + \
@@ -72,6 +73,38 @@ def bbox_iou(box1, box2, x1y1x2y2=True):
 
     return inter_area / union_area  # iou
 
+def nms(bboxes, score_threshold, iou_threshold, sigma=0.3, method='nms'):
+    """
+    :param bboxes:
+    假设有N个bbox的score大于score_threshold，那么bboxes的shape为(N, 6)，存储格式为(xmin, ymin, xmax, ymax, score, class)
+    其中(xmin, ymin, xmax, ymax)的大小都是相对于输入原图的，score = conf * prob，class是bbox所属类别的索引号
+    :return: best_bboxes
+    假设NMS后剩下N个bbox，那么best_bboxes的shape为(N, 6)，存储格式为(xmin, ymin, xmax, ymax, score, class)
+    其中(xmin, ymin, xmax, ymax)的大小都是相对于输入原图的，score = conf * prob，class是bbox所属类别的索引号
+    """
+    classes_in_img = list(set(bboxes[:, 5]))
+    best_bboxes = []
+
+    for cls in classes_in_img:
+        cls_mask = (bboxes[:, 5] == cls)
+        cls_bboxes = bboxes[cls_mask]
+        while len(cls_bboxes) > 0:
+            max_ind = np.argmax(cls_bboxes[:, 4])
+            best_bbox = cls_bboxes[max_ind]
+            best_bboxes.append(best_bbox)
+            cls_bboxes = np.concatenate([cls_bboxes[: max_ind], cls_bboxes[max_ind + 1:]])
+            iou = bbox_iou(best_bbox[:4], cls_bboxes[:, :4])
+            assert method in ['nms', 'soft-nms']
+            weight = np.ones((len(iou),), dtype=np.float32)
+            if method == 'nms':
+                iou_mask = iou > iou_threshold
+                weight[iou_mask] = 0.0
+            if method == 'soft-nms':
+                weight = np.exp(-(1.0 * iou ** 2 / sigma))
+            cls_bboxes[:, 4] = cls_bboxes[:, 4] * weight
+            score_mask = cls_bboxes[:, 4] > score_threshold
+            cls_bboxes = cls_bboxes[score_mask]
+    return best_bboxes
 
 def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.5):
     """

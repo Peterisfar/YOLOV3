@@ -9,8 +9,8 @@ import utils.datasets as data
 import os
 import time
 import random
-from test import Tester
 import argparse
+from eval.evaluator import *
 
 
 class Trainer(object):
@@ -40,7 +40,7 @@ class Trainer(object):
         self.device = gpu.select_device(gpu_id)
         self.start_epoch = 0
         self.warmup_epoch = warm_up_epoch
-        self.best_loss = float("inf")
+        self.best_mAP = 0.
         self.epochs = epochs
         self.lr_init = lr_init
         self.lr_end = lr_end
@@ -69,6 +69,7 @@ class Trainer(object):
                                    momentum=momentum,
                                    weight_decay=weight_decay
                                    )
+
         self.criterion = YoloV3Loss(focal_loss=focal_loss,
                                     iou_threshold_loss=iou_threshold_loss,
                                     label_smoothing=label_smoothing,
@@ -84,22 +85,22 @@ class Trainer(object):
             self.start_epoch = chkpt['epoch'] + 1
             if chkpt['optimizer'] is not None:
                 self.optimizer.load_state_dict(chkpt['optimizer'])
-                self.best_loss = chkpt['best_loss']
+                self.best_mAP = chkpt['best_mAP']
             del chkpt
         else:
             pre_trained_weight = os.path.join(weight_path, "darknet53.conv.74")
             self.yolov3.load_darknet_weights(pre_trained_weight)
 
-    def __save_model_weights(self, loss, epoch):
+    def __save_model_weights(self, mAP, epoch):
         best_weight = os.path.join(self.weight_path, "best.pt")
         last_weight = os.path.join(self.weight_path, "last.pt")
         chkpt = {'epoch': epoch,
-                 'best_loss': self.best_loss,
+                 'best_mAP': self.best_mAP,
                  'model': self.yolov3.state_dict(),
                  'optimizer': self.optimizer.state_dict()}
         torch.save(chkpt, last_weight)
 
-        if self.best_loss == loss:
+        if self.best_mAP == mAP:
             torch.save(chkpt, best_weight)
 
         if epoch > 0 and epoch % 10 == 0:
@@ -112,7 +113,8 @@ class Trainer(object):
         for epoch in range(self.start_epoch, self.epochs):
             self.yolov3.train()
             self.optimizer.zero_grad()
-
+            print(('\n%8s%12s' + '%10s' * 7)
+                  % ('Epoch', 'Batch', 'xy', 'wh', 'conf', 'cls', 'total', 'nTargets', 'time'))
             mloss = torch.zeros(5).to(self.device)  # mean losses
             for i, (imgs, targets) in enumerate(self.train_dataloader):
                 imgs = imgs.to(self.device)
@@ -127,7 +129,7 @@ class Trainer(object):
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
-                # Update running mean of tracked metrics
+                # Update run       ning mean of tracked metrics
                 mloss = (mloss * i + loss_items) / (i + 1) # 平均值
 
                 # Print batch results
@@ -141,20 +143,17 @@ class Trainer(object):
                 if self.multi_scale_train and (i+1)%10 == 0:
                     self.train_dataset.img_size = random.choice(range(10,20)) * 32
                     print("multi_scale_img_size : {}".format(self.train_dataset.img_size))
+            if epoch > 0:
+                print('*'*20+"Validate"+'*'*20)
+                with torch.no_grad():
+                    result = Evaluator(self.yolov3).APs_voc()
+                    mAP = 0
+                    for i in result:
+                        print(i, result[i])
+                        mAP += result[i]
+                    print('mAP:%g'%(mAP/self.train_dataset.num_classes))
 
-            print('*'*20+"Validate"+'*'*20)
-            with torch.no_grad():
-                results = Tester(batch_size=16,
-                             model=self.yolov3,
-                             iou_threshold=self.iou_threshold_loss,
-                             conf_threshold=self.conf_threshold,
-                             nms_threshold=self.nms_threshold).test()
-
-            # write epoch results
-            with open('results.txt', 'a') as file:
-                file.write(s + '%11.3g' * 5 % results + '\n')
-
-            self.__save_model_weights(results[-1], epoch)
+                self.__save_model_weights(mAP, epoch)
 
 
 if __name__ == "__main__":
@@ -178,7 +177,7 @@ if __name__ == "__main__":
     parser.add_argument('--focal_loss', action='store_false', default=False, help='focal loss flag')
     parser.add_argument('--iou_threshold_loss', type=float, default=0.5, help='iou threshold in calculate loss')
     parser.add_argument('--label_smoothing', action='store_false', default=False, help='label smoothing flag')
-    parser.add_argument('--conf_threshold', type=float, default=0.01, help='threshold for object class confidence')
+    parser.add_argument('--conf_threshold', type=float, default=0.005, help='threshold for object class confidence')
     parser.add_argument('--nms_threshold', type=float, default=0.5, help='threshold for nms')
     parser.add_argument('--gpu_id', type=int, default=3, help='gpu id')
     opt = parser.parse_args()

@@ -65,7 +65,6 @@ class Tester(object):
                 pred_de, pred = self.yolov3(imgs)
 
                 loss_i , _= self.criterion(net=self.yolov3, p=pred, targets=targets)
-                loss += loss_i.item()
 
                 # nms
                 # output : 一个batch中每张图片预测值经过nms后剩下的boxes; shape : [[...], [...], ...]
