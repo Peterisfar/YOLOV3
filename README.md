@@ -37,5 +37,11 @@ python3 voc.py // get train_annotation.txt and test_annotation.txt
 * PyTorch `*.pt` format: https://drive.google.com/drive/folders/1uxgUBemJVw9wZsdpboYbzUN4bcRhsuAI
 
 ## Train
-
+```Bash
+nohup python3 train.py > nohup.log 2>&1 &
+```
 ## Test
+
+## Reference
+* tensorflow : https://github.com/Stinky-Tofu/Stronger-yolo
+* pytorch : https://github.com/ultralytics/yolov3/blob/master/train.py
