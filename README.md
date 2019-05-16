@@ -17,6 +17,19 @@ It may be caused by the loss function.  I will modify it later.And anyone also c
 * Multiply Training (320 to 640)
 * LR Schedule (LambdaLR)
 
-## Data
+## Prepared
+### 1、git clone YOLOV3 repository 
+```Bash
+git clone https://github.com/Peterisfar/YOLOV3.git
+```
+### 2、Download dataset
+* Download [VOC 2012_trainval](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar)
+       、[VOC 2007_trainval](http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtrainval_06-Nov-2007.tar)
+       、[VOC 2007_test](http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar)
+* convert voc data type to custom data type
+custom datatype is : Image name &nbsp; xmin,ymin,xmax,ymax &nbsp; \[...]
+### 3、Download pre-weight 
+
+
 ## Train
 ## Test
