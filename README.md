@@ -18,7 +18,7 @@ It may be caused by the loss function.  I will modify it later.And anyone also c
 * LR Schedule (LambdaLR)
 
 ## Prepared
-### 1、git clone YOLOV3 repository 
+### 1、Git clone YOLOV3 repository 
 ```Bash
 git clone https://github.com/Peterisfar/YOLOV3.git
 ```
@@ -29,6 +29,8 @@ git clone https://github.com/Peterisfar/YOLOV3.git
 * convert voc data type to custom data type
 custom datatype is : Image name &nbsp; xmin,ymin,xmax,ymax &nbsp; \[...]
 ### 3、Download pre-weight 
+- Darknet `*.weights` format: https://pjreddie.com/media/files/yolov3.weights
+- PyTorch `*.pt` format: https://drive.google.com/drive/folders/1uxgUBemJVw9wZsdpboYbzUN4bcRhsuAI
 
 
 ## Train
