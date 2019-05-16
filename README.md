@@ -28,7 +28,7 @@ git clone https://github.com/Peterisfar/YOLOV3.git
        、[VOC 2007_test](http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar)
 * convert voc data type to custom data type
 custom datatype is : Image name &nbsp; xmin,ymin,xmax,ymax &nbsp; \[...]
-```Bash
+```bash
 cd utils
 python3 voc.py // get train_annotation.txt and test_annotation.txt
 ```
