@@ -43,5 +43,6 @@ nohup python3 train.py > nohup.log 2>&1 &
 ## Test
 
 ## Reference
+good recurrent
 * tensorflow : https://github.com/Stinky-Tofu/Stronger-yolo
-* pytorch : https://github.com/ultralytics/yolov3/blob/master/train.py
+* pytorch : https://github.com/ultralytics/yolov3
