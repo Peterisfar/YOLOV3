@@ -13,7 +13,9 @@ It may be caused by the loss function.  I will modify it later.And anyone also c
 * opencv-python 3.4.0.12
 
 ## Tools
-
+* Data Augment (RandomHorizontalFlip, RandomCrop, RandomAffine, Resize)
+* Multiply Training (320 to 640)
+* LR Schedule (LambdaLR)
 
 ## Data
 ## Train
