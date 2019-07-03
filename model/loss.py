@@ -12,10 +12,10 @@ class YoloV3Loss(object):
                         obj_scale=1.0,
                         noobj_scale=1.0,
                         class_scale=1.0,
-                        focal_loss=True,
+                        focal_loss=False,
                         iou_reject=True,
-                        iou_threshold_loss=0.5,
-                        label_smoothing=True
+                        iou_threshold_loss=0.05,
+                        label_smoothing=False
                         ):
         self.coord_scale = coord_scale
         self.obj_scale = obj_scale
@@ -33,108 +33,86 @@ class YoloV3Loss(object):
         :param targets: [bs*N, 6] ----6->[x,y,w,h,cls,mixup_weight]
         :return: loss
         """
-        # adjust targets shape : 3 * [bs, nA, grid, grid, 5+1+cls+2] ------
-        # 其中 5+1+cls+2 = [tx,ty,tw,th,conf,mixup_weight, cls..., gw, gh]
-        bath_size = p[0].shape[0]
-        targets = self.__build_targets(net, targets, p[0].shape[0])
         device = p[0].device
-        MSE = nn.MSELoss(reduce=False, reduction=None)
-        BCE = nn.BCEWithLogitsLoss(reduce=False, reduction=None)
-        loss_bboxes = torch.tensor([0]).float().to(device)
-        loss_cls = torch.tensor([0]).float().to(device)
-        loss_conf = torch.tensor([0]).float().to(device)
+        lxy = torch.tensor([0]).float().to(device)
+        lwh = torch.tensor([0]).float().to(device)
+        lcls = torch.tensor([0]).float().to(device)
+        lconf = torch.tensor([0]).float().to(device)
+        txy, twh, tcls, indices = self.__build_targets(net, targets)
 
-        for i, pi in enumerate(p):
-            mask_obj = targets[i][..., 4] == 1.0
-            mask_noobj = targets[i][..., 4] == 0.0
-            targets_obj = targets[i][mask_obj]
-            targets_noobj = targets[i][mask_noobj]
+        # Define criteria
+        MSE = nn.MSELoss()
+        CE = nn.CrossEntropyLoss()
+        BCE = nn.BCEWithLogitsLoss()
 
-            if targets_obj.shape[0]:
-                # bboxes loss
-                bbox_loss_scale = 2.0 - 1.0 * targets_obj[..., -2] * targets_obj[..., -1]
-                # 计算tx ty tw th 损失并乘以mixup_weight
-                loss_bboxes_base = (MSE(torch.sigmoid(pi[mask_obj][..., :2]), targets_obj[..., :2]) + \
-                                    0.5 * MSE(pi[mask_obj][..., 2:4], targets_obj[..., 2:4])) * \
-                                   targets_obj[..., 5].view(-1,1)  # mixup_weight
-                loss_bboxes += self.coord_scale * torch.sum(bbox_loss_scale.view(-1, 1) * loss_bboxes_base)
+        # Compute losses
+        bs = p[0].shape[0]  # batch size
+        k = 10.39 * bs  # loss gain
+        for i, pi0 in enumerate(p):  # layer i predictions, i
+            b, a, gj, gi = indices[i]  # image, anchor, gridx, gridy
+            tconf = torch.zeros_like(pi0[..., 0])  # conf
 
-                # class loss
-                loss_cls += self.class_scale * torch.sum(BCE(pi[mask_obj][..., 5:], targets_obj[..., 6:-2]) *
-                                                    targets_obj[..., 5].view(-1,1))
+            # Compute losses
+            if len(b):  # number of targets
+                pi = pi0[b, a, gj, gi]  # predictions closest to anchors
+                tconf[b, a, gj, gi] = 1  # conf
 
-            # confidence loss
-            conf_focal = self.__focal_loss(targets[i][..., 4], pi[..., 4]) if self.FOCAL_LOSS else \
-                        torch.ones_like(pi[..., 4]) # focal_loss False 时使初始值为1.0
-            loss_conf_obj = self.obj_scale * conf_focal[mask_obj] * \
-                            BCE(pi[mask_obj][..., 4], targets_obj[..., 4]) * \
-                            targets_obj[..., 5]
-            loss_conf_noobj = self.noobj_scale * conf_focal[mask_noobj] * \
-                              BCE(pi[mask_noobj][..., 4], targets_noobj[..., 4])
-            loss_conf += torch.sum(torch.cat((loss_conf_obj, loss_conf_noobj)))
+                lxy += (k * 0.13) * MSE(torch.sigmoid(pi[..., 0:2]), txy[i])  # xy loss
+                lwh += (k * 0.01) * MSE(pi[..., 2:4], twh[i])  # wh yolo loss
+                lcls += (k * 0.01) * CE(pi[..., 5:], tcls[i])  # class_conf loss
 
-        loss = (loss_bboxes + loss_cls + loss_conf) / bath_size
+            lconf += (k * 0.84) * BCE(pi0[..., 4], tconf)  # obj_conf loss
+        loss = lxy + lwh + lconf + lcls
 
-        return loss
+        return loss, torch.cat((lxy, lwh, lconf, lcls, loss)).detach()
 
-    def __focal_loss(self, target, p, alpha=1.0, gamma=2.0):
-        return alpha * torch.pow(torch.abs(target - p), gamma)
-
-    def __build_targets(self, net, targets, bs):
+    def __build_targets(self, net, targets):
         """
         :param net:
         :param targets: targets shape : [bs*N, 7] ---- [x, y, w, h, cls, mixup_weight, bs_id]
         :return:shape : [bs, nA, grid, grid, 5+cls+1+2] ------[tx,ty,tw,th,conf,mixup_weight,cls...,gw,gh]
         """
         # 根据每个检测层分配label
-        bboxes_g = []
+        # targets = [image, class, x, y, w, h]
+        iou_thres = self.IOU_THRESHOLD_LOSS
+
+        nt = len(targets)
+        txy, twh, tcls, indices = [], [], [], []
         for i in net.yolo_layers_num:
-            yolo_layer = net.module_list[i][0]
-            bbox_g = torch.zeros(bs,
-                                 yolo_layer.nA,
-                                 int(yolo_layer.nG.item()),
-                                 int(yolo_layer.nG.item()),
-                                 6 + yolo_layer.nC + 2).to(targets.device)
-            bbox_g[..., 5] = 1.0  # mixup_weight 初始值
+            layer = net.module_list[i][0]
 
-            # 根据wh_iou指定GT由哪个anchor负责， 选择iou最大为基准
-            gwh = targets[:, 2:4] * yolo_layer.nG  # gt 尺寸与feature map 一致
-            # anchor尺寸为feature map 一致；x shape : [2] gwh [bs*N, 2] (广播)
-            iou = [tools.wh_iou(x, gwh) for x in yolo_layer.anchor_vec]
-            iou, a = torch.stack(iou, -1).max(-1)
+            # iou of targets-anchors
+            t, a = targets, []
+            gwh = targets[:, 2:4] * layer.nG
+            if nt:
+                iou = [tools.wh_iou(x, gwh) for x in layer.anchor_vec]
+                iou, a = torch.stack(iou, 0).max(0)  # best iou and anchor
 
-            # iou threshold  选出IOU符合条件的anchor
-            if self.IOU_THRESHOLD_REJECT:
-                mask = iou > self.IOU_THRESHOLD_LOSS
-                t, a, gwh = targets[mask], a[mask], gwh[mask]
-            else:
-                t = targets
+                # reject below threshold ious (OPTIONAL, increases P, lowers R)
+                reject = True
+                if reject:
+                    j = iou > iou_thres
+                    t, a, gwh = targets[j], a[j], gwh[j]
 
-            if len(t):
-                bn = t[:, -1].long()
-                gxy = t[:, :2] * yolo_layer.nG
-                grid_x, grid_y = gxy.long().t()
+            # Indices
+            b = t[:, -1].long()
+            c = t[:, 4].long()
+            gxy = t[:, :2] * layer.nG
+            gi, gj = gxy.long().t()  # grid_i, grid_j
+            indices.append((b, a, gj, gi))
 
-                txy = gxy - gxy.floor()  # GT相对与所在网格左上角的坐标偏移量
-                twh = torch.log(gwh / yolo_layer.anchor_vec[a])  # GT相对与所负责anchor的尺度缩放量
-                mixup_weight = t[:, -2].view(-1,1).contiguous()
-                conf = torch.ones(len(bn), 1).to(targets.device)
+            # XY coordinates
+            txy.append(gxy - gxy.floor())
 
-                cls = torch.zeros(len(bn), yolo_layer.nC).to(targets.device)
-                c = t[:, -3].long()
-                for i in range(len(c)):
-                    cls[i, c[i]] = 1.0
-                # label smoothing
-                if self.LABEL_SMOOTHING:
-                    cls = dataAug.LabelSmooth()(cls, yolo_layer.nC)
+            # Width and height
+            twh.append(torch.log(gwh / layer.anchor_vec[a]))  # wh yolo method
 
-                # shape : [bs, nA, grid, grid, 5+cls+1+2] ------[tx,ty,tw,th,conf,mixup_weight, cls..., gw, gh]
-                bbox_g[bn, a, grid_x, grid_y] = torch.cat((txy, twh, conf, mixup_weight, cls, gwh / yolo_layer.nG), -1)
-                bboxes_g.append(bbox_g)
-            else:
-                bboxes_g.append(bbox_g)
+            # Class
+            tcls.append(c)
+            if c.shape[0]:
+                assert c.max() <= layer.nC, 'Target classes exceed model classes'
 
-        return bboxes_g
+        return txy, twh, tcls, indices
 
 
 # if __name__ == "__main__":
