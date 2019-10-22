@@ -81,6 +81,7 @@ class Trainer(object):
         self.scheduler = lr_scheduler.MultiStepLR(self.optimizer, milestones=[60, 90], gamma=0.1,
                                                   last_epoch=self.start_epoch - 1)
 
+
     def __load_model_weights(self, weight_path, resume):
         if resume:
             last_weight = os.path.join(weight_path, "last.pt")
