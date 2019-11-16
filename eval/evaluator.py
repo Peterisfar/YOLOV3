@@ -10,16 +10,20 @@ from utils.data_augment import *
 import torch
 from utils.tools import *
 from tqdm import tqdm
+from utils.visualize import *
 
 
-class  Evaluator(object):
-    def __init__(self, model):
+class Evaluator(object):
+    def __init__(self, model, visiual=True):
         self.classes = pms.CLASSES
         self.pred_result_path = os.path.join(pms.PROJECT_PATH, 'data', 'results')
         self.val_data_path = os.path.join(pms.DATA_PATH, 'VOCtest-2007', 'VOCdevkit', 'VOC2007')
         self.conf_thresh = pms.conf_thresh
         self.nms_thresh = pms.nms_thresh
         self.val_shape = pms.input_shape
+
+        self.__visiual = visiual
+        self.__visual_imgs = 0
 
         self.model = model
         self.device = next(model.parameters()).device
@@ -39,6 +43,18 @@ class  Evaluator(object):
             img = cv2.imread(img_path)
             bboxes_prd = self.get_bbox(img, multi_test, flip_test)
 
+            if bboxes_prd.shape[0]!=0 and self.__visiual and self.__visual_imgs < 100:
+                boxes = bboxes_prd[..., :4]
+                class_inds = bboxes_prd[..., 5].astype(np.int32)
+                scores = bboxes_prd[..., 4]
+
+                visualize_boxes(image=img, boxes=boxes, labels=class_inds, probs=scores, class_labels=self.classes)
+                path = os.path.join(pms.PROJECT_PATH, "data/results/{}.jpg".format(self.__visual_imgs))
+                cv2.imwrite(path, img)
+                # print("saving predict images : {}".format(path))
+
+                self.__visual_imgs += 1
+
             for bbox in bboxes_prd:
                 coor = np.array(bbox[:4], dtype=np.int32)
                 score = bbox[4]
@@ -51,6 +67,7 @@ class  Evaluator(object):
 
                 with open(os.path.join(self.pred_result_path, 'comp4_det_test_' + class_name + '.txt'), 'a') as f:
                     f.write(s)
+
 
         return self.__calc_APs()
 
@@ -80,18 +97,15 @@ class  Evaluator(object):
         img = self.__get_img_tensor(img, test_shape).to(self.device)
         self.model.eval()
         with torch.no_grad():
-            pred, _ = self.model(img)
-        pred_bbox = pred.squeeze().cpu().numpy()
+            _, p_d = self.model(img)
+        pred_bbox = p_d.squeeze().cpu().numpy()
         bboxes = self.__convert_pred(pred_bbox, test_shape, (org_h, org_w), valid_scale)
 
         return bboxes
 
     def __get_img_tensor(self, img, test_shape):
-        img = Resize((test_shape, test_shape), correct_box=False)(img, None)
-        img = img[:, :, ::-1].transpose(2, 0, 1)
-        img = np.ascontiguousarray(img, dtype=np.float32)
-        img /= 255.0
-        return torch.from_numpy(img[np.newaxis, ...])
+        img = Resize((test_shape, test_shape), correct_box=False)(img, None).transpose(2, 0, 1)
+        return torch.from_numpy(img[np.newaxis, ...]).float()
 
 
     def __convert_pred(self, pred_bbox, test_shape, org_img_shape, valid_scale):
@@ -123,7 +137,7 @@ class  Evaluator(object):
         scale_mask = np.logical_and((valid_scale[0] < bboxes_scale), (bboxes_scale < valid_scale[1]))
 
         # Remove the bbox whose score is lower than score_threshold
-        classes = np.argmax(pred_prob, axis=-1)
+        classes = np.argmax(pred_prob, axis=-1).astype(np.int32)
         scores = pred_conf * pred_prob[np.arange(len(pred_coor)), classes]
         score_mask = scores > self.conf_thresh
 
@@ -135,7 +149,6 @@ class  Evaluator(object):
         bboxes = np.concatenate([coors, scores[:, np.newaxis], classes[:, np.newaxis]], axis=-1)
 
         return bboxes
-
 
 
     def __calc_APs(self, iou_thresh=0.5, use_07_metric=False):

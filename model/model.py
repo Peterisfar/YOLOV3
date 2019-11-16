@@ -128,54 +128,83 @@ class YOLOLayer(nn.Module):
         self.anchors = torch.FloatTensor(anchors) # 该YOLOLayer负责的anchors(3个)
         self.nA = len(anchors)
         self.nC = nC
-        self.img_size =  0
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        # self.__create_grids(img_size=32, nG=1, device=device) # grids的初始化，不具备意义
+        # self.img_size = 0
+
 
     def forward(self, p, img_size, var=None):
         bs, nG = p.shape[0], p.shape[-1]
-        if self.img_size != img_size:
-            self.__create_grids(img_size, nG, p.device) # img_size 指输入图像的尺寸，如416
+        # if self.img_size != img_size:
+        #     self.__create_grids(img_size, bs, nG, p.device) # img_size 指输入图像的尺寸，如416
 
-        # p:[bs,75,13,13] ----> [bs, 3, 25, 13, 13] ----> [bs, 3, 13, 13, 25] (bs, anchors, grid, grid, tx+ty+tw+th+c+classes)
-        p = p.view(bs, self.nA, 5 + self.nC , nG, nG).permute(0, 1, 3, 4, 2).contiguous()
+        # p:[bs,75,13,13] ----> [bs, 3, 25, 13, 13] ----> [bs, 13, 13, 3, 25]
+        p = p.view(bs, self.nA, 5 + self.nC , nG, nG).permute(0, 3, 4, 1, 2)
 
-        if self.training:
-            return p
-        else: # inference
-            p_de = self.__decode(p.clone(), bs)
-            return p_de, p # 返回解码p以及p
+        # 训练和测试都进行解码
+        p_de = self.__decode(p.clone().detach(), img_size)
+        return (p, p_de)
 
-    def __decode(self, p, bs):
-        p[..., 0:2] = torch.sigmoid(p[..., 0:2]) + self.grid_xy  # xy
-        p[..., 2:4] = torch.exp(p[..., 2:4]) * self.anchor_wh
-        p[..., 4] = torch.sigmoid(p[..., 4])
-        p[..., 5:] = torch.sigmoid(p[..., 5:])
-        p[..., :4] *= self.stride  # 根据比例将anchor box调整到原图大小
+    def __decode(self, p, img_size):
+        conv_shape = p.shape
 
-        return p.view(bs, -1, 5+self.nC) # 例如 shape : [bs, 13*13*3+26*26*3+52*52*3, 25]
+        device = p.device
+        batch_size = conv_shape[0]
+        output_size = conv_shape[1]
+        anchor_per_scale = self.nA
+        num_classes = self.nC
+        stride = img_size / output_size
+        anchors = (1.0 * self.anchors / stride).to(device)
 
-    def __create_grids(self, img_size, nG, device='cpu'):
-        """
-        create_grids用于计算每个YOLOLayer层对应的网格
-        :param self: YOLOLayer对象
-        :param img_size: 原图的尺寸，如416
-        :param nG: 网格数量，如13
-        :param device: cpu or gpu
-        """
-        self.img_size = img_size
-        self.stride = img_size / nG
 
-        # xy offsets
-        # -------->x
-        grid_x = torch.arange(nG).repeat(nG, 1).view(1, 1, nG, nG).float()  # repeat(nG, 1)生成nG行x坐标，并将其调整为[1,1,nG,nG]
-        grid_y = grid_x.permute(0, 1, 3, 2) # grid_x 和 grid_y 存在转置关系，生成nG列y坐标
-        self.grid_xy = torch.stack((grid_x, grid_y), dim=4).to(device)  # 维度扩增为[1, 1, nG, nG, 2]
+        conv_output = p.view(batch_size, output_size, output_size, anchor_per_scale, 5 + num_classes)
+        conv_raw_dxdy = conv_output[:, :, :, :, 0:2]
+        conv_raw_dwdh = conv_output[:, :, :, :, 2:4]
+        conv_raw_conf = conv_output[:, :, :, :, 4:5]
+        conv_raw_prob = conv_output[:, :, :, :, 5:]
 
-        # wh gains
-        self.anchor_vec = self.anchors.to(device) / self.stride # anchors 以原图大小为标准缩放同等比例,即为feature map 上的特征图
-        self.anchor_wh = self.anchor_vec.view(1, self.nA, 1, 1, 2).to(device) # [1,3,1,1,2]
-        self.nG = torch.FloatTensor([nG]).to(device)
+
+        y = torch.arange(0, output_size).unsqueeze(1).repeat(1, output_size)
+        x = torch.arange(0, output_size).unsqueeze(0).repeat(output_size, 1)
+        grid_xy = torch.stack([x, y], dim=-1)
+        grid_xy = grid_xy.unsqueeze(0).unsqueeze(3).repeat(batch_size, 1, 1, 3, 1).float().to(device)
+
+        # (1)对x, y, w, h进行decode
+        pred_xy = (torch.sigmoid(conv_raw_dxdy) + grid_xy) * stride
+        pred_wh = (torch.exp(conv_raw_dwdh) * anchors) * stride
+        pred_xywh = torch.cat([pred_xy, pred_wh], dim=-1)
+
+        # (2)对confidence进行decode
+        pred_conf = torch.sigmoid(conv_raw_conf)
+
+        # (3)对probability进行decode
+        pred_prob = torch.sigmoid(conv_raw_prob)
+        pred_bbox = torch.cat([pred_xywh, pred_conf, pred_prob], dim=-1)
+
+
+        return pred_bbox.view(-1, 5+self.nC) if not self.training else pred_bbox  # 例如 shape : [bs, 13*13*3+26*26*3+52*52*3, 25]
+
+
+    # def __create_grids(self, img_size, bs, nG, device='cpu'):
+    #     """
+    #     create_grids用于计算每个YOLOLayer层对应的网格
+    #     :param self: YOLOLayer对象
+    #     :param img_size: 原图的尺寸，如416
+    #     :param nG: 网格数量，如13
+    #     :param device: cpu or gpu
+    #     """
+    #     self.img_size = img_size
+    #     self.stride = img_size / nG
+    #
+    #     # xy offsets
+    #     # -------->x
+    #
+    #     grid_x = torch.arange(nG).repeat(nG, 1).view(1, nG, nG, 1).float()  # repeat(nG, 1)生成nG行x坐标，并将其调整为[1,nG,nG,1]
+    #     grid_y = grid_x.permute(0, 2, 1, 3)  # grid_x 和 grid_y 存在转置关系，生成nG列y坐标
+    #     self.grid_xy = torch.stack((grid_x, grid_y), dim=4).to(device)  # 维度扩增为[1,  nG, nG, 1, 2]
+    #
+    #     # wh gains
+    #     self.anchor_vec = self.anchors.to(device) / self.stride # anchors 以原图大小为标准缩放同等比例,即为feature map 上的特征图
+    #     self.anchor_wh = self.anchor_vec.view(1,  1, 1, self.nA, 2).to(device) # [1,1,1,3,2]
+    #     self.nG = torch.FloatTensor([nG]).to(device)
 
 
 class Darknet(nn.Module):
@@ -188,8 +217,8 @@ class Darknet(nn.Module):
 
     def forward(self, x):
         img_size = x.shape[-1]
-        layer_outputs = [] # 保存每一层的特征图
-        output = [] # 保存YOLO层的预测结果，一共3层
+        layer_outputs = []  # 保存每一层的特征图
+        output = []  # 保存YOLO层的预测结果，一共3层
 
         for i, (module_def, module) in enumerate(zip(self.module_defs, self.module_list)):
             mtype = module_def["type"]
@@ -213,10 +242,12 @@ class Darknet(nn.Module):
             layer_outputs.append(x)
 
         if self.training:
-            return output
+            p, p_d = list(zip(*output))
+            return p, p_d
         else:
-            p_de, p = list(zip(*output))
-            return torch.cat(p_de, 1), p
+            p, p_d = list(zip(*output))
+            return p, torch.cat(p_d, 0)
+
 
     def load_darknet_weights(self, weight_path):
         weight_path = os.path.join(pms.PROJECT_PATH, weight_path)
@@ -236,11 +267,11 @@ class Darknet(nn.Module):
                     bn_layer = module[1]
                     num_b = bn_layer.bias.numel()
 
-                    bn_b = torch.from_numpy(weights[ptr:ptr+num_b]).view_as(bn_layer.bias)
+                    bn_b = torch.from_numpy(weights[ptr:ptr+num_b]).view_as(bn_layer.bias.data)
                     bn_layer.bias.data.copy_(bn_b)
                     ptr += num_b
 
-                    bn_w = torch.from_numpy(weights[ptr:ptr + num_b]).view_as(bn_layer.weight)
+                    bn_w = torch.from_numpy(weights[ptr:ptr + num_b]).view_as(bn_layer.weight.data)
                     bn_layer.weight.data.copy_(bn_w)
                     ptr += num_b
 
@@ -258,7 +289,7 @@ class Darknet(nn.Module):
                     ptr += num_b
 
                 num_w = conv_layer.weight.numel()
-                conv_w = torch.from_numpy(weights[ptr:ptr+num_w]).view_as(conv_layer.weight)
+                conv_w = torch.from_numpy(weights[ptr:ptr+num_w]).view_as(conv_layer.weight.data)
                 conv_layer.weight.data.copy_(conv_w)
                 ptr += num_w
 
@@ -267,13 +298,14 @@ class Darknet(nn.Module):
         return [i for i, x in enumerate(a) if x] # yolo [82, 94, 106]
 
 
+
 if __name__ == "__main__":
-    # test darknet is ok!
+
     net = Darknet("cfg/yolov3-voc.cfg")
     print(net)
-
     in_img = torch.randn(2, 3, 416, 416)
-    with SummaryWriter(comment="Darknet") as w:
-        w.add_graph(net, (in_img,))
-    print("good!")
+    p, p_d = net(in_img)
+
+    print(p[1].shape)
+    print(p_d[0].shape)
 

@@ -11,7 +11,8 @@ class RandomHorizontalFilp(object):
     def __call__(self, img, bboxes):
         if random.random() < self.p:
             _, w_img, _ = img.shape
-            img = np.fliplr(img)
+            # img = np.fliplr(img)
+            img = img[:, ::-1, :]
             bboxes[:, [0, 2]] = w_img - bboxes[:, [2, 0]]
         return img, bboxes
 
@@ -35,7 +36,7 @@ class RandomCrop(object):
             crop_xmax = max(w_img, int(max_bbox[2] + random.uniform(0, max_r_trans)))
             crop_ymax = max(h_img, int(max_bbox[3] + random.uniform(0, max_d_trans)))
 
-            img = img[crop_ymin: crop_ymax, crop_xmin: crop_xmax]
+            img = img[crop_ymin : crop_ymax, crop_xmin : crop_xmax]
 
             bboxes[:, [0, 2]] = bboxes[:, [0, 2]] - crop_xmin
             bboxes[:, [1, 3]] = bboxes[:, [1, 3]] - crop_ymin
@@ -78,6 +79,8 @@ class Resize(object):
     def __call__(self, img, bboxes):
         h_org , w_org , _= img.shape
 
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32)
+
         resize_ratio = min(1.0 * self.w_target / w_org, 1.0 * self.h_target / h_org)
         resize_w = int(resize_ratio * w_org)
         resize_h = int(resize_ratio * h_org)
@@ -87,7 +90,8 @@ class Resize(object):
         dw = int((self.w_target - resize_w) / 2)
         dh = int((self.h_target - resize_h) / 2)
         image_paded[dh:resize_h + dh, dw:resize_w + dw, :] = image_resized
-        image = image_paded
+        image = image_paded / 255.0  # normalize to [0, 1]
+
 
         if self.correct_box:
             bboxes[:, [0, 2]] = bboxes[:, [0, 2]] * resize_ratio + dw

@@ -8,36 +8,36 @@ import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.data import DataLoader
 import utils.datasets as data
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"]='2'
+os.environ["CUDA_VISIBLE_DEVICES"]='1'
 import time
 import random
 import argparse
 from eval.evaluator import *
+from tensorboardX import SummaryWriter
 
 
 class Trainer(object):
     def __init__(self, cfg_path,
                         weight_path, # 权重文件路径
-                       anno_file_type="train",
-                        img_size=416,
-                        resume=False,  # 继续训练
-                        epochs=300,
-                        batch_size=8,
-                        multi_scale_train=True,
-                         num_works=4,
-                        augment=True, # 数据增强
-                        lr_init=0.0001,
-                        lr_end=10e-6,
-                        warm_up_epoch=2,
-                        mix_up=False,
-                        momentum=0.9,
-                        weight_decay=0.0005,
-                        focal_loss=True,
-                        iou_threshold_loss=0.5,
-                        label_smoothing=False,
-                        conf_threshold=0.001,
-                        nms_threshold=0.5,
-                        gpu_id=0
+                       anno_file_type,
+                        img_size,
+                        resume,  # 继续训练
+                        epochs,
+                        batch_size,
+                        multi_scale_train,
+                         num_works,
+                        augment, # 数据增强
+                        lr_init,
+                        lr_end,
+                        warm_up_epoch,
+                        mix_up,
+                        momentum,
+                        weight_decay,
+                        focal_loss,
+                        iou_threshold_loss,
+                        conf_threshold,
+                        nms_threshold,
+                        gpu_id
                  ):
         init_seeds(0)
         self.device = gpu.select_device(gpu_id)
@@ -62,23 +62,21 @@ class Trainer(object):
                                            num_workers=num_works,
                                            shuffle=True,
                                            sampler=None,  # 可以用于分布式训练
-                                           collate_fn=self.train_dataset.collate_fn
                                            )
         self.yolov3 = Darknet(cfg_path=cfg_path, img_size=img_size).to(self.device)
-        # self.__load_model_weights(weight_path, resume)
+        self.yolov3.apply(tools.weights_init_normal)
 
         self.optimizer = optim.SGD(self.yolov3.parameters(),
                                    lr=lr_init,
                                    momentum=momentum,
                                    weight_decay=weight_decay
                                    )
+        # self.optimizer = optim.Adam(self.yolov3.parameters(), lr = lr_init, weight_decay=0.9995)
 
         self.criterion = YoloV3Loss(focal_loss=focal_loss,
-                                    iou_threshold_loss=iou_threshold_loss,
-                                    label_smoothing=label_smoothing,
-                                    )
+                                    iou_threshold_loss=iou_threshold_loss)
         self.__load_model_weights(weight_path, resume)
-        self.scheduler = lr_scheduler.MultiStepLR(self.optimizer, milestones=[60, 90], gamma=0.1,
+        self.scheduler = lr_scheduler.MultiStepLR(self.optimizer, milestones=[25, 40], gamma=0.1,
                                                   last_epoch=self.start_epoch - 1)
 
 
@@ -94,10 +92,10 @@ class Trainer(object):
                 self.best_mAP = chkpt['best_mAP']
             del chkpt
         else:
-            pre_trained_weight = os.path.join(weight_path, "darknet53.conv.74")
+            pre_trained_weight = os.path.join(weight_path, "darknet53_448.weights")
             self.yolov3.load_darknet_weights(pre_trained_weight)
 
-    def __save_model_weights(self, mAP, epoch):
+    def __save_model_weights(self, epoch, mAP):
         if mAP > self.best_mAP:
             self.best_mAP = mAP
         best_weight = os.path.join(self.weight_path, "best.pt")
@@ -116,56 +114,68 @@ class Trainer(object):
         del chkpt
 
     def train(self):
-        t = time.time()
+        print(self.yolov3)
+
         nb = len(self.train_dataloader)
+        print("Train datasets number is : {}".format(nb))
+
         for epoch in range(self.start_epoch, self.epochs):
             self.yolov3.train()
+
             self.scheduler.step()
-            self.optimizer.zero_grad()
-            print(('\n%8s%12s' + '%10s' * 7 + "    lr : %f")
-                  % ('Epoch', 'Batch', 'xy', 'wh', 'conf', 'cls', 'total', 'nTargets', 'time', self.optimizer.param_groups[0]['lr']))
-            mloss = torch.zeros(5).to(self.device)  # mean losses
-            for i, (imgs, targets) in enumerate(self.train_dataloader):
+            # self.optimizer.zero_grad()
+
+            mloss = torch.zeros(4).to(self.device)  # mean losses
+            for i, (imgs, label_sbbox, label_mbbox, label_lbbox, sbboxes, mbboxes, lbboxes)  in enumerate(self.train_dataloader):
+
                 imgs = imgs.to(self.device)
-                targets = targets.to(self.device)
-                nt = len(targets)
+                label_sbbox = label_sbbox.to(self.device)
+                label_mbbox = label_mbbox.to(self.device)
+                label_lbbox = label_lbbox.to(self.device)
+                sbboxes = sbboxes.to(self.device)
+                mbboxes = mbboxes.to(self.device)
+                lbboxes = lbboxes.to(self.device)
 
-                pred = self.yolov3(imgs)
+                p, p_d = self.yolov3(imgs)
 
-                loss, loss_items = self.criterion(net=self.yolov3, p=pred, targets=targets)
-                loss.backward()
+                loss, loss_xywh, loss_conf, loss_cls = self.criterion(p, p_d, label_sbbox, label_mbbox,
+                                                  label_lbbox, sbboxes, mbboxes, lbboxes)
 
-                self.optimizer.step()
                 self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
 
-                # Update run       ning mean of tracked metrics
+
+                # Update running mean of tracked metrics
+                loss_items = torch.tensor([loss_xywh, loss_conf, loss_cls, loss]).to(self.device)
                 mloss = (mloss * i + loss_items) / (i + 1) # 平均值
 
                 # Print batch results
-                s = ('%8s%12s' + '%10.3g' * 7) % (
-                    '%g/%g' % (epoch, self.epochs - 1),
-                    '%g/%g' % (i, nb - 1), *mloss, nt, time.time() - t)
-                print(s)
-                t = time.time()
+                if i%10==0:
+                    s = ('Epoch:[ %d | %d ]    Batch:[ %d | %d ]    loss_xywh: %.4f    loss_conf: %.4f    loss_cls: %.4f    loss: %.4f    '
+                         'lr: %g') % (epoch, self.epochs - 1, i, nb - 1, mloss[0],mloss[1], mloss[2], mloss[3],
+                                      self.optimizer.param_groups[0]['lr'])
+                    print(s)
 
                 # multi-sclae training (320-608 pixels) every 10 batches
                 if self.multi_scale_train and (i+1)%10 == 0:
                     self.train_dataset.img_size = random.choice(range(10,20)) * 32
                     print("multi_scale_img_size : {}".format(self.train_dataset.img_size))
-            if epoch > 0:
+
+            mAP = 0
+            if epoch >= 8:
                 print('*'*20+"Validate"+'*'*20)
                 with torch.no_grad():
                     result = Evaluator(self.yolov3).APs_voc()
-                    mAP = 0
+
                     for i in result:
                         print(i, result[i])
                         mAP += result[i]
                     mAP = mAP/self.train_dataset.num_classes
                     print('mAP:%g'%(mAP))
 
-
-                self.__save_model_weights(mAP, epoch)
-                print('best mAP : %g' % (self.best_mAP))
+            self.__save_model_weights(epoch, mAP)  # TODO:BUG CUDA out of memory
+            print('best mAP : %g' % (self.best_mAP))
 
 
 if __name__ == "__main__":
@@ -174,11 +184,11 @@ if __name__ == "__main__":
     parser.add_argument('--weight_path', type=str, default='weight', help='weight file path')
     parser.add_argument('--anno_file_type', type=str, default='train', help='data file type')
     parser.add_argument('--img_size', type=int, default=448, help='image size')
-    parser.add_argument('--resume', action='store_true',default=False,  help='resume training flag')
-    parser.add_argument('--epochs', type=int, default=160, help='number of epochs')
+    parser.add_argument('--resume', action='store_true',default=True,  help='resume training flag')
+    parser.add_argument('--epochs', type=int, default=50, help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=16, help='batch size')
     parser.add_argument('--multi_scale_train', action='store_false', default=False, help='multi scale train flag')
-    parser.add_argument('--num_works', type=int, default=0, help='number of pytorch dataloader workers') # Bug
+    parser.add_argument('--num_works', type=int, default=4, help='number of pytorch dataloader workers') # Bug
     parser.add_argument('--augment', action='store_false', default=True, help='data augment flag')
     parser.add_argument('--lr_init', type=float, default=0.0001, help='learning rate at start')
     parser.add_argument('--lr_end', type=float, default=10e-6, help='learning rate at end')
@@ -187,11 +197,11 @@ if __name__ == "__main__":
     parser.add_argument('--momentum', type=float, default=0.9, help='optimizer momentum')
     parser.add_argument('--weight_decay', type=float, default=0.0005, help='optimizer weight decay')
     parser.add_argument('--focal_loss', action='store_false', default=False, help='focal loss flag')
-    parser.add_argument('--iou_threshold_loss', type=float, default=0.2, help='iou threshold in calculate loss')
+    parser.add_argument('--iou_threshold_loss', type=float, default=0.5, help='iou threshold in calculate loss')
     parser.add_argument('--label_smoothing', action='store_false', default=False, help='label smoothing flag')
     parser.add_argument('--conf_threshold', type=float, default=0.005, help='threshold for object class confidence')
     parser.add_argument('--nms_threshold', type=float, default=0.5, help='threshold for nms')
-    parser.add_argument('--gpu_id', type=int, default=3, help='gpu id')
+    parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
     opt = parser.parse_args()
 
     Trainer(cfg_path=opt.cfg_path,
@@ -212,7 +222,6 @@ if __name__ == "__main__":
             weight_decay=opt.weight_decay,
             focal_loss=opt.focal_loss,
             iou_threshold_loss=opt.iou_threshold_loss,
-            label_smoothing=opt.label_smoothing,
             conf_threshold=opt.conf_threshold,
             nms_threshold=opt.nms_threshold,
             gpu_id=opt.gpu_id).train()

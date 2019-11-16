@@ -1,6 +1,11 @@
-# 
+# dir
 weight
 data
+model/runs
+.idea
+
+# file
+results.txt
 
 # python
 *.py[cod]
