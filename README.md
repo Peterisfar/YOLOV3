@@ -1,19 +1,19 @@
 # YOLOV3
 ---
 # Introduction
----
+
 This is my own YOLOV3 written in pytorch, and is also the first time i have reproduced a object detection model.The dataset used is PASCAL VOC(not use difficulty). The eval tool is the voc2012. Now the mAP gains the goal score.
 
 Subsequently, i will continue to update the code to make it more concise , and add the new and efficient tricks.
 
 ---
 ## Results
----
+
 
 | name | Train Dataset | Val Dataset | mAP(others) | mAP(mine) | notes |
 | :----- | :----- | :------ | :----- | :-----| :-----|
 | YOLOV3-448-544 | 2007trainval + 2012trainval | 2007test | 0.769 | 0.768 | baseline(augument + step lr) |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.793  | 0.803 | multi-scale training |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.793  | 0.803 | \+multi-scale training |
   
   
 `Note` : 
@@ -24,7 +24,7 @@ Subsequently, i will continue to update the code to make it more concise , and a
 
 ---
 ## Environment
----
+
 * Nvida GeForce RTX 2080 Ti
 * CUDA10.0
 * CUDNN7.0
@@ -37,7 +37,7 @@ pip3 install -r requirements.txt --user
 
 ---
 ## Brief
----
+
 * [x] Data Augment (RandomHorizontalFlip, RandomCrop, RandomAffine, Resize)
 * [x] Step lr Schedule 
 * [x] Multi-scale Training (320 to 640)
@@ -48,7 +48,7 @@ pip3 install -r requirements.txt --user
 
 ---
 ## Prepared work
----
+
 ### 1、Git clone YOLOV3 repository
 ```Bash
 git clone https://github.com/Peterisfar/YOLOV3.git
@@ -71,7 +71,7 @@ Make dir `weight/` in the YOLOV3 and put the weight file in.
 
 ---
 ## Train
----
+
 Run the following command to start training and see the details in the `params.py`
 
 ```Bash
@@ -88,7 +88,7 @@ nohup CUDA_VISIABLE_DEVICES=0 python3 train.py --cfg_path $CFG_PATH --weight_pat
 
 ---
 ## Test
----
+
 Run the folling command to test, 
 
 ```Bash
@@ -102,9 +102,9 @@ nohup CUDA_VISIABLE_DEVICES=0 python3 test.py --cfg_path $CFG_PATH --weight_path
 ---
 ## TODO
 ---
-* [] Mish
-* [] OctvConv
-* [] Mobilenet v1-v3
+* [ ] Mish
+* [ ] OctvConv
+* [ ] Mobilenet v1-v3
 
 ---
 ## Reference
