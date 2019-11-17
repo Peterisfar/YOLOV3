@@ -6,15 +6,15 @@ This is my own YOLOV3 written in pytorch, and is also the first time i have repr
 
 Subsequently, i will continue to update the code to make it more concise , and add the new and efficient tricks.
 
----
+
 ## Results
----
 | name | Train Dataset | Val Dataset | mAP(others) | mAP(mine) | notes |
 | :----- | :----- | :------ | :----- | :-----|
 | YOLOV3-448-544 | 2007trainval + 2012trainval | 2007test | 0.769 | 0.768 | baseline(augument + step lr) |
-| YOLOV3-*-544 | 2007trainval + 2012trainval | 2007test | 0.793 | 0.803 | +multi-scale training |
+| YOLOV3-\*-544  2007trainval + 2012trainval | 2007test | 0.793 | 0.803 multi-scale training |
 
-    
+  
+  
 `Note` : 
 
 * YOLOV3-448-544 means train image size is 448 and test image size is 544. `"*"` means the multi-scale.
