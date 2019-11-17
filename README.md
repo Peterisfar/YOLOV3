@@ -2,7 +2,7 @@
 ---
 # Introduction
 
-This is my own YOLOV3 written in pytorch, and is also the first time i have reproduced a object detection model.The dataset used is PASCAL VOC(not use difficulty). The eval tool is the voc2012. Now the mAP gains the goal score.
+This is my own YOLOV3 written in pytorch, and is also the first time i have reproduced a object detection model.The dataset used is PASCAL VOC(not use difficulty). The eval tool is the voc2010. Now the mAP gains the goal score.
 
 Subsequently, i will continue to update the code to make it more concise , and add the new and efficient tricks.
 
@@ -77,6 +77,7 @@ Run the following command to start training and see the details in the `params.p
 ```Bash
 CFG_PATH=cfg/yolov3-voc.cfg
 WEIGHT_PATH=weight
+
 nohup CUDA_VISIABLE_DEVICES=0 python3 train.py --cfg_path $CFG_PATH --weight_path $WEIGHT_PATH --gpu_id 0 > nohup.log 2>&1 &
 
 ```
@@ -89,7 +90,7 @@ nohup CUDA_VISIABLE_DEVICES=0 python3 train.py --cfg_path $CFG_PATH --weight_pat
 ---
 ## Test
 
-Run the folling command to test, 
+Run the follwing command to test, 
 
 ```Bash
 CFG_PATH=cfg/yolov3-voc.cfg
