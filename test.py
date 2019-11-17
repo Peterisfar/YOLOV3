@@ -8,6 +8,8 @@ import argparse
 import os
 import params as pms
 from utils.visualize import *
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]='1'
 
 
 class Tester(object):
@@ -32,7 +34,7 @@ class Tester(object):
 
         self.__load_model_weights(weight_path)
 
-        self.__evalter = Evaluator(self.__model, visiual=False)
+        self.__evalter = Evaluator(self.__model, visiual=True)
 
 
     def __load_model_weights(self, weight_path):

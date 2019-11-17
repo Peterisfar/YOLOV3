@@ -14,9 +14,7 @@ def weights_init_normal(m):
         print("{} initing".format(m))
         torch.nn.init.normal_(m.weight.data, 0.0, 0.01)
         if m.bias is not None:
-            print(m.bias)
             m.bias.data.zero_()
-            print(m.bias)
 
     elif classname.find('BatchNorm2d') != -1:
         print("{} initing".format(m))
@@ -92,6 +90,37 @@ def bbox_iou(box1, box2, mode="xyxy"):
     return inter_area / union_area  # iou
 
 
+def img_preprocess2(image, bboxes, target_shape, correct_box=True):
+    """
+    RGB转换 -> resize(resize不改变原图的高宽比) -> normalize
+    并可以选择是否校正bbox
+    :param image_org: 要处理的图像
+    :param target_shape: 对图像处理后，期望得到的图像shape，存储格式为(h, w)
+    :return: 处理之后的图像，shape为target_shape
+    """
+    h_target, w_target = target_shape
+    h_org, w_org, _ = image.shape
+
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
+
+    resize_ratio = min(1.0 * w_target / w_org, 1.0 * h_target / h_org)
+    resize_w = int(resize_ratio * w_org)
+    resize_h = int(resize_ratio * h_org)
+    image_resized = cv2.resize(image, (resize_w, resize_h))
+
+    image_paded = np.full((h_target, w_target, 3), 128.0)
+    dw = int((w_target - resize_w) / 2)
+    dh = int((h_target - resize_h) / 2)
+    image_paded[dh:resize_h+dh, dw:resize_w+dw,:] = image_resized
+    image = image_paded / 255.0
+
+    if correct_box:
+        bboxes[:, [0, 2]] = bboxes[:, [0, 2]] * resize_ratio + dw
+        bboxes[:, [1, 3]] = bboxes[:, [1, 3]] * resize_ratio + dh
+        return image, bboxes
+    return image
+
+
 def iou_calc2(boxes1, boxes2):
     """
     :param boxes1: boxes1和boxes2的shape可以不相同，但是需要满足广播机制
@@ -148,14 +177,42 @@ def iou_numpy(boxes1, boxes2):
     return IOU
 
 
-def iou_torch(boxes1, boxes2):
+# def iou_torch(boxes1, boxes2):
+#     """
+#     :param boxes1: boxes1和boxes2的shape可以不相同，但是需要满足广播机制，且需要是Tensor
+#     :param boxes2: 且需要保证最后一维为坐标维，以及坐标的存储结构为(xmin, ymin, xmax, ymax)
+#     :return: 返回boxes1和boxes2的IOU，IOU的shape为boxes1和boxes2广播后的shape[:-1]
+#     """
+#     boxes1_area = (boxes1[..., 2] - boxes1[..., 0]) * (boxes1[..., 3] - boxes1[..., 1])
+#     boxes2_area = (boxes2[..., 2] - boxes2[..., 0]) * (boxes2[..., 3] - boxes2[..., 1])
+#
+#     # 计算出boxes1与boxes1相交部分的左上角坐标、右下角坐标
+#     left_up = torch.max(boxes1[..., :2], boxes2[..., :2])
+#     right_down = torch.min(boxes1[..., 2:], boxes2[..., 2:])
+#
+#     # 因为两个boxes没有交集时，(right_down - left_up) < 0，所以maximum可以保证当两个boxes没有交集时，它们之间的iou为0
+#     inter_section = torch.max(right_down - left_up, torch.zeros_like(right_down))
+#     inter_area = inter_section[..., 0] * inter_section[..., 1]
+#     union_area = boxes1_area + boxes2_area - inter_area
+#     IOU = 1.0 * inter_area / union_area
+#     return IOU
+
+
+def iou_xywh_torch(boxes1, boxes2):
     """
     :param boxes1: boxes1和boxes2的shape可以不相同，但是需要满足广播机制，且需要是Tensor
-    :param boxes2: 且需要保证最后一维为坐标维，以及坐标的存储结构为(xmin, ymin, xmax, ymax)
+    :param boxes2: 且需要保证最后一维为坐标维，以及坐标的存储结构为(x, y, w, h)
     :return: 返回boxes1和boxes2的IOU，IOU的shape为boxes1和boxes2广播后的shape[:-1]
     """
-    boxes1_area = (boxes1[..., 2] - boxes1[..., 0]) * (boxes1[..., 3] - boxes1[..., 1])
-    boxes2_area = (boxes2[..., 2] - boxes2[..., 0]) * (boxes2[..., 3] - boxes2[..., 1])
+    boxes1_area = boxes1[..., 2] * boxes1[..., 3]
+    boxes2_area = boxes2[..., 2] * boxes2[..., 3]
+
+    # 分别计算出boxes1和boxes2的左上角坐标、右下角坐标
+    # 存储结构为(xmin, ymin, xmax, ymax)，其中(xmin,ymin)是bbox的左上角坐标，(xmax,ymax)是bbox的右下角坐标
+    boxes1 = torch.cat([boxes1[..., :2] - boxes1[..., 2:] * 0.5,
+                        boxes1[..., :2] + boxes1[..., 2:] * 0.5], dim=-1)
+    boxes2 = torch.cat([boxes2[..., :2] - boxes2[..., 2:] * 0.5,
+                        boxes2[..., :2] + boxes2[..., 2:] * 0.5], dim=-1)
 
     # 计算出boxes1与boxes1相交部分的左上角坐标、右下角坐标
     left_up = torch.max(boxes1[..., :2], boxes2[..., :2])
@@ -167,6 +224,7 @@ def iou_torch(boxes1, boxes2):
     union_area = boxes1_area + boxes2_area - inter_area
     IOU = 1.0 * inter_area / union_area
     return IOU
+
 
 
 def nms(bboxes, score_threshold, iou_threshold, sigma=0.3, method='nms'):

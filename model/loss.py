@@ -20,9 +20,9 @@ class YoloV3Loss(object):
         :param label_sbbox: small 检测层的分配标签, shape为[bs,  grid, grid, anchors, x+y+w+h+conf+cls_20]
         :param label_mbbox: medium检测层的分配标签, shape为[bs,  grid, grid, anchors, x+y+w+h+conf+cls_20]
         :param label_lbbox: large检测层的分配标签, shape为[bs,  grid, grid, anchors, x+y+w+h+conf+cls_20]
-        :param sbboxes: small检测层的bboxes, shape为[bs, 150, x+y+w+h+cls]
-        :param mbboxes: medium检测层的bboxes, shape为[bs, 150, x+y+w+h+cls]
-        :param lbboxes: large检测层的bboxes, shape为[bs, 150, x+y+w+h+cls]
+        :param sbboxes: small检测层的bboxes, shape为[bs, 150, x+y+w+h]
+        :param mbboxes: medium检测层的bboxes, shape为[bs, 150, x+y+w+h]
+        :param lbboxes: large检测层的bboxes, shape为[bs, 150, x+y+w+h]
         :return: loss为总损失值，loss_l[m, s]为每层的损失值
         """
         anchors = torch.tensor(pms.ANCHORS)
@@ -33,7 +33,7 @@ class YoloV3Loss(object):
                                                                mbboxes, anchors[1], strides[1])
         loss_l, loss_l_xywh, loss_l_conf, loss_l_cls = self.__cal_loss_per_layer(p[0], p_d[0], label_lbbox,
                                                                lbboxes, anchors[2], strides[2])
-        loss = (loss_l + loss_m + loss_s)/3
+        loss = (loss_l + loss_m + loss_s) / 3
         loss_xywh = (loss_s_xywh + loss_m_xywh + loss_l_xywh) / 3
         loss_conf = (loss_s_conf + loss_m_conf + loss_l_conf) / 3
         loss_cls = (loss_s_cls + loss_s_cls + loss_l_cls) / 3
@@ -53,7 +53,7 @@ class YoloV3Loss(object):
         :param p_d: p解码以后的结果。xywh均为相对于原图的尺度和位置，conf和cls均进行sigmoid。表示形式为
         [bs, grid, grid, anchors, x+y+w+h+conf+cls]
         :param label: lable的表示形式为(bs,  grid, grid, anchors, x+y+w+h+conf+cls) 其中xywh均为相对于原图的尺度和位置。
-        :param bboxes: 该batch内分配给该层的所有bboxes，shape为(bs, 150, 5).
+        :param bboxes: 该batch内分配给该层的所有bboxes，shape为(bs, 150, 4).
         :param anchors: 该检测层的ahchor尺度大小。格式为torch.tensor
         :param stride: 该层feature map相对于原图的尺度缩放量
         :return: 该检测层的所有batch平均损失。loss=loss_xywh + loss_conf + loss_cls。
@@ -98,7 +98,7 @@ class YoloV3Loss(object):
 
 
         # loss confidence
-        iou = tools.iou_torch(p_d_xywh.unsqueeze(4), bboxes.unsqueeze(1).unsqueeze(1).unsqueeze(1))
+        iou = tools.iou_xywh_torch(p_d_xywh.unsqueeze(4), bboxes.unsqueeze(1).unsqueeze(1).unsqueeze(1))
         iou_max = iou.max(-1, keepdim=True)[0]
         label_noobj_mask = (1.0 - label_obj_mask) * (iou_max < self.__iou_threshold_loss).float()
 
@@ -110,6 +110,7 @@ class YoloV3Loss(object):
 
         # loss = torch.cat([loss_xy, loss_wh, loss_conf, loss_cls], dim=-1)
         # loss = loss.sum([1,2,3,4], keepdim=True).mean()  # batch的平均损失
+
         # loss_xywh = torch.cat([loss_xy, loss_wh], dim=-1)
 
         loss_xywh = (torch.sum(loss_xy) + torch.sum(loss_wh)) / batch_size

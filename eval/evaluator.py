@@ -108,7 +108,7 @@ class Evaluator(object):
         return torch.from_numpy(img[np.newaxis, ...]).float()
 
 
-    def __convert_pred(self, pred_bbox, test_shape, org_img_shape, valid_scale):
+    def __convert_pred(self, pred_bbox, test_input_size, org_img_shape, valid_scale):
         """
         预测框进行过滤，去除尺度不合理的框
         """
@@ -116,32 +116,36 @@ class Evaluator(object):
         pred_conf = pred_bbox[:, 4]
         pred_prob = pred_bbox[:, 5:]
 
-        # boxes rescale to img_shape
+        # (1)
+        # (xmin_org, xmax_org) = ((xmin, xmax) - dw) / resize_ratio
+        # (ymin_org, ymax_org) = ((ymin, ymax) - dh) / resize_ratio
+        # 需要注意的是，无论我们在训练的时候使用什么数据增强方式，都不影响此处的转换方式
+        # 假设我们对输入测试图片使用了转换方式A，那么此处对bbox的转换方式就是方式A的逆向过程
         org_h, org_w = org_img_shape
-        resize_ratio = min(1.0 * test_shape / org_w, 1.0 * test_shape / org_h)
-        dw = (test_shape - resize_ratio * org_w) / 2
-        dh = (test_shape - resize_ratio * org_h) / 2
-        pred_coor[:, [0, 2]] = 1.0 * (pred_coor[:, [0, 2]] - dw) / resize_ratio
-        pred_coor[:, [1, 3]] = 1.0 * (pred_coor[:, [1, 3]] - dh) / resize_ratio
+        resize_ratio = min(1.0 * test_input_size / org_w, 1.0 * test_input_size / org_h)
+        dw = (test_input_size - resize_ratio * org_w) / 2
+        dh = (test_input_size - resize_ratio * org_h) / 2
+        pred_coor[:, 0::2] = 1.0 * (pred_coor[:, 0::2] - dw) / resize_ratio
+        pred_coor[:, 1::2] = 1.0 * (pred_coor[:, 1::2] - dh) / resize_ratio
 
-        # Cut out the portion of the predicted bbox that exceeds the original image
+        # (2)将预测的bbox中超出原图的部分裁掉
         pred_coor = np.concatenate([np.maximum(pred_coor[:, :2], [0, 0]),
                                     np.minimum(pred_coor[:, 2:], [org_w - 1, org_h - 1])], axis=-1)
-
-        # set the coor of the invalid bbox to 0
+        # (3)将无效bbox的coor置为0
         invalid_mask = np.logical_or((pred_coor[:, 0] > pred_coor[:, 2]), (pred_coor[:, 1] > pred_coor[:, 3]))
         pred_coor[invalid_mask] = 0
 
-        # Remove bbox that is not in range
+        # (4)去掉不在有效范围内的bbox
         bboxes_scale = np.sqrt(np.multiply.reduce(pred_coor[:, 2:4] - pred_coor[:, 0:2], axis=-1))
         scale_mask = np.logical_and((valid_scale[0] < bboxes_scale), (bboxes_scale < valid_scale[1]))
 
-        # Remove the bbox whose score is lower than score_threshold
-        classes = np.argmax(pred_prob, axis=-1).astype(np.int32)
+        # (5)将score低于score_threshold的bbox去掉
+        classes = np.argmax(pred_prob, axis=-1)
         scores = pred_conf * pred_prob[np.arange(len(pred_coor)), classes]
         score_mask = scores > self.conf_thresh
 
         mask = np.logical_and(scale_mask, score_mask)
+
         coors = pred_coor[mask]
         scores = scores[mask]
         classes = classes[mask]

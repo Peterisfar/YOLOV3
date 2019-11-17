@@ -13,6 +13,7 @@ import time
 import random
 import argparse
 from eval.evaluator import *
+from utils.tools import *
 from tensorboardX import SummaryWriter
 
 
@@ -35,8 +36,6 @@ class Trainer(object):
                         weight_decay,
                         focal_loss,
                         iou_threshold_loss,
-                        conf_threshold,
-                        nms_threshold,
                         gpu_id
                  ):
         init_seeds(0)
@@ -49,8 +48,7 @@ class Trainer(object):
         self.lr_end = lr_end
         self.weight_path = weight_path
         self.multi_scale_train = multi_scale_train
-        self.conf_threshold = conf_threshold
-        self.nms_threshold = nms_threshold
+
         self.iou_threshold_loss = iou_threshold_loss
         self.train_dataset = data.VocDataset(anno_file_type=anno_file_type,
                                               img_size=img_size,
@@ -115,9 +113,8 @@ class Trainer(object):
 
     def train(self):
         print(self.yolov3)
+        print("Train datasets number is : {}".format(len(self.train_dataset)))
 
-        nb = len(self.train_dataloader)
-        print("Train datasets number is : {}".format(nb))
 
         for epoch in range(self.start_epoch, self.epochs):
             self.yolov3.train()
@@ -145,7 +142,6 @@ class Trainer(object):
                 loss.backward()
                 self.optimizer.step()
 
-
                 # Update running mean of tracked metrics
                 loss_items = torch.tensor([loss_xywh, loss_conf, loss_cls, loss]).to(self.device)
                 mloss = (mloss * i + loss_items) / (i + 1) # 平均值
@@ -153,7 +149,7 @@ class Trainer(object):
                 # Print batch results
                 if i%10==0:
                     s = ('Epoch:[ %d | %d ]    Batch:[ %d | %d ]    loss_xywh: %.4f    loss_conf: %.4f    loss_cls: %.4f    loss: %.4f    '
-                         'lr: %g') % (epoch, self.epochs - 1, i, nb - 1, mloss[0],mloss[1], mloss[2], mloss[3],
+                         'lr: %g') % (epoch, self.epochs - 1, i, len(self.train_dataloader) - 1, mloss[0],mloss[1], mloss[2], mloss[3],
                                       self.optimizer.param_groups[0]['lr'])
                     print(s)
 
@@ -163,7 +159,7 @@ class Trainer(object):
                     print("multi_scale_img_size : {}".format(self.train_dataset.img_size))
 
             mAP = 0
-            if epoch >= 8:
+            if epoch >= 20:
                 print('*'*20+"Validate"+'*'*20)
                 with torch.no_grad():
                     result = Evaluator(self.yolov3).APs_voc()
@@ -184,9 +180,9 @@ if __name__ == "__main__":
     parser.add_argument('--weight_path', type=str, default='weight', help='weight file path')
     parser.add_argument('--anno_file_type', type=str, default='train', help='data file type')
     parser.add_argument('--img_size', type=int, default=448, help='image size')
-    parser.add_argument('--resume', action='store_true',default=True,  help='resume training flag')
+    parser.add_argument('--resume', action='store_true',default=False,  help='resume training flag')
     parser.add_argument('--epochs', type=int, default=50, help='number of epochs')
-    parser.add_argument('--batch_size', type=int, default=16, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=8, help='batch size')
     parser.add_argument('--multi_scale_train', action='store_false', default=False, help='multi scale train flag')
     parser.add_argument('--num_works', type=int, default=4, help='number of pytorch dataloader workers') # Bug
     parser.add_argument('--augment', action='store_false', default=True, help='data augment flag')
@@ -199,8 +195,6 @@ if __name__ == "__main__":
     parser.add_argument('--focal_loss', action='store_false', default=False, help='focal loss flag')
     parser.add_argument('--iou_threshold_loss', type=float, default=0.5, help='iou threshold in calculate loss')
     parser.add_argument('--label_smoothing', action='store_false', default=False, help='label smoothing flag')
-    parser.add_argument('--conf_threshold', type=float, default=0.005, help='threshold for object class confidence')
-    parser.add_argument('--nms_threshold', type=float, default=0.5, help='threshold for nms')
     parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
     opt = parser.parse_args()
 
@@ -222,6 +216,4 @@ if __name__ == "__main__":
             weight_decay=opt.weight_decay,
             focal_loss=opt.focal_loss,
             iou_threshold_loss=opt.iou_threshold_loss,
-            conf_threshold=opt.conf_threshold,
-            nms_threshold=opt.nms_threshold,
             gpu_id=opt.gpu_id).train()
