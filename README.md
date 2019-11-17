@@ -6,13 +6,14 @@ This is my own YOLOV3 written in pytorch, and is also the first time i have repr
 
 Subsequently, i will continue to update the code to make it more concise , and add the new and efficient tricks.
 
-
+---
 ## Results
-| name | Train Dataset | Val Dataset | mAP(others) | mAP(mine) | notes |
-| :----- | :----- | :------ | :----- | :-----|
-| YOLOV3-448-544 | 2007trainval + 2012trainval | 2007test | 0.769 | 0.768 | baseline(augument + step lr) |
-| YOLOV3-\*-544  2007trainval + 2012trainval | 2007test | 0.793 | 0.803 multi-scale training |
+---
 
+| name | Train Dataset | Val Dataset | mAP(others) | mAP(mine) | notes |
+| :----- | :----- | :------ | :----- | :-----| :-----|
+| YOLOV3-448-544 | 2007trainval + 2012trainval | 2007test | 0.769 | 0.768 | baseline(augument + step lr) |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.793  | 0.803 | multi-scale training |
   
   
 `Note` : 
@@ -48,7 +49,7 @@ pip3 install -r requirements.txt --user
 ---
 ## Prepared work
 ---
-### 1、Git clone YOLOV3 repository 
+### 1、Git clone YOLOV3 repository
 ```Bash
 git clone https://github.com/Peterisfar/YOLOV3.git
 ```
