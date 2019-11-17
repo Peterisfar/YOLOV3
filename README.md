@@ -78,7 +78,7 @@ Run the following command to start training and see the details in the `params.p
 CFG_PATH=cfg/yolov3-voc.cfg
 WEIGHT_PATH=weight
 
-nohup CUDA_VISIABLE_DEVICES=0 python3 train.py --cfg_path $CFG_PATH --weight_path $WEIGHT_PATH --gpu_id 0 > nohup.log 2>&1 &
+CUDA_VISIBLE_DEVICES=0 nohup python3 -u train.py --cfg_path $CFG_PATH --weight_path $WEIGHT_PATH --gpu_id 0 > nohup.log 2>&1 &
 
 ```
 
@@ -97,7 +97,7 @@ CFG_PATH=cfg/yolov3-voc.cfg
 WEIGHT_PATH=weight
 DATA_TEST=./data/test # your own images
 
-nohup CUDA_VISIABLE_DEVICES=0 python3 test.py --cfg_path $CFG_PATH --weight_path $WEIGHT_PATH --gpu_id 0 --visiual $DATA_TEST --eval> nohup.log 2>&1 &
+CUDA_VISIBLE_DEVICES=0 python3 test.py --cfg_path $CFG_PATH --weight_path $WEIGHT_PATH --gpu_id 0 --visiual $DATA_TEST --eval
 
 ```
 ---
