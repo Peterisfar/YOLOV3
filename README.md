@@ -101,13 +101,13 @@ nohup CUDA_VISIABLE_DEVICES=0 python3 test.py --cfg_path $CFG_PATH --weight_path
 ```
 ---
 ## TODO
----
+
 * [ ] Mish
 * [ ] OctvConv
 * [ ] Mobilenet v1-v3
 
 ---
 ## Reference
----
+
 * tensorflow : https://github.com/Stinky-Tofu/Stronger-yolo
 * pytorch : https://github.com/ultralytics/yolov3
