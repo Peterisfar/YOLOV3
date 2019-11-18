@@ -90,17 +90,6 @@ CUDA_VISIBLE_DEVICES=0 nohup python3 -u train.py --cfg_path $CFG_PATH --weight_p
 ## Test
 You should define your weight file path `WEIGHT_FILE` and images file path `IMAGE_FILE`
 ```Bash
-
-WEIGHT_FILE=weight/best.pt
-IMAGE_FILE=./data/test
-
-CUDA_VISIABLE_DEVICES=0 python3 test.py --cfg_path cfg/yolov3-voc.cfg --weight_path $WEIGHT_FILE  --visiual $IMAGE_FILE --gpu_id 0 
-
-```
-
-Run the follwing command to test, 
-
-```Bash
 CFG_PATH=cfg/yolov3-voc.cfg
 WEIGHT_PATH=weight
 DATA_TEST=./data/test # your own images
