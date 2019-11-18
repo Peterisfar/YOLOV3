@@ -109,5 +109,6 @@ CUDA_VISIBLE_DEVICES=0 python3 test.py --cfg_path $CFG_PATH --weight_path $WEIGH
 
 * tensorflow : https://github.com/Stinky-Tofu/Stronger-yolo
 * pytorch : https://github.com/ultralytics/yolov3
+* keras : https://github.com/qqwweee/keras-yolo3
 
 
