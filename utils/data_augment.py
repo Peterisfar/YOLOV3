@@ -24,7 +24,7 @@ class RandomCrop(object):
     def __call__(self, img, bboxes):
         if random.random() < self.p:
             h_img, w_img, _ = img.shape
-            # 得到可以包含所有bbox的最大bbox
+
             max_bbox = np.concatenate([np.min(bboxes[:, 0:2], axis=0), np.max(bboxes[:, 2:4], axis=0)], axis=-1)
             max_l_trans = max_bbox[0]
             max_u_trans = max_bbox[1]
@@ -45,7 +45,7 @@ class RandomCrop(object):
 
 class RandomAffine(object):
     def __init__(self, p=0.5):
-        self.p = 0.5
+        self.p = p
 
     def __call__(self, img, bboxes):
         if random.random() < self.p:
@@ -69,8 +69,9 @@ class RandomAffine(object):
 
 
 class Resize(object):
-    """RGB转换 ----->  resize(保持原有长宽比)
-    并可以选择是否校正bbox
+    """
+    Resize the image to target size and transforms it into a color channel(BGR->RGB),
+    as well as pixel value normalization([0,1])
     """
     def __init__(self, target_shape, correct_box=True):
         self.h_target, self.w_target = target_shape
@@ -91,7 +92,6 @@ class Resize(object):
         dh = int((self.h_target - resize_h) / 2)
         image_paded[dh:resize_h + dh, dw:resize_w + dw, :] = image_resized
         image = image_paded / 255.0  # normalize to [0, 1]
-
 
         if self.correct_box:
             bboxes[:, [0, 2]] = bboxes[:, [0, 2]] * resize_ratio + dw

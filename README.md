@@ -1,10 +1,11 @@
 # YOLOV3
-I tried to use yolov3 written by pytorch. The data set used is PASCAL VOC. Now the recurring effect is not the best. 
-It may be caused by the loss function.  I will modify it later.And anyone also could give me some advice.
+This is my own YOLOV3 written in pytorch, and is also the first time i have reproduced a object detection model.The dataset used is PASCAL VOC(not use difficulty). Now the mAP gains the goal.
+
+
 ## Result
-| name | Train Dataset | Val Dataset | mAP(others) | mAP(mine) | 
+| name | Train Dataset | Val Dataset | mAP(others) | mAP(mine) | note | 
 | :----- | :----- | :------ | :----- | :-----|
-| YOLOV3-448<br>(darknet53.conv.74)</br> | 2007trainval + 2012trainval | 2007test | 0.769 | 0.6854 |
+| YOLOV3-448<br>(darknet53.conv.74)</br> | 2007trainval + 2012trainval | 2007test | 0.769 | 0.768 | augument + step lr |
 
 ## Environment
 * pytorch 1.0.0
@@ -14,8 +15,8 @@ It may be caused by the loss function.  I will modify it later.And anyone also c
 
 ## Tools
 * [x] Data Augment (RandomHorizontalFlip, RandomCrop, RandomAffine, Resize)
-* [ ] Multi-scale Training (320 to 640)
 * [x] LR Schedule 
+* [ ] Multi-scale Training (320 to 640)
 * [ ] MIXUP
 * [ ] Label smooth
 * [ ] GIOU
@@ -38,13 +39,21 @@ python3 voc.py // get train_annotation.txt and test_annotation.txt
 ```
 ### 3、Download pre-weight 
 * Darknet `*.weights` format: https://pjreddie.com/media/files/yolov3.weights
-* PyTorch `*.pt` format: https://drive.google.com/drive/folders/1uxgUBemJVw9wZsdpboYbzUN4bcRhsuAI
 
 ## Train
 ```Bash
 nohup python3 train.py > nohup.log 2>&1 &
 ```
 ## Test
+You should define your weight file path `WEIGHT_FILE` and images file path `IMAGE_FILE`
+```Bash
+
+WEIGHT_FILE=weight/best.pt
+IMAGE_FILE=./data/test
+
+CUDA_VISIABLE_DEVICES=0 python3 test.py --cfg_path cfg/yolov3-voc.cfg --weight_path $WEIGHT_FILE  --visiual $IMAGE_FILE --gpu_id 0 
+
+```
 
 ## Reference
 good recurrent

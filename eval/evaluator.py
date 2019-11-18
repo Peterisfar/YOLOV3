@@ -15,12 +15,12 @@ from utils.visualize import *
 
 class Evaluator(object):
     def __init__(self, model, visiual=True):
-        self.classes = pms.CLASSES
+        self.classes = pms.DATA["CLASSES"]
         self.pred_result_path = os.path.join(pms.PROJECT_PATH, 'data', 'results')
         self.val_data_path = os.path.join(pms.DATA_PATH, 'VOCtest-2007', 'VOCdevkit', 'VOC2007')
-        self.conf_thresh = pms.conf_thresh
-        self.nms_thresh = pms.nms_thresh
-        self.val_shape = pms.input_shape
+        self.conf_thresh = pms.TEST["CONF_THRESH"]
+        self.nms_thresh = pms.TEST["NMS_THRESH"]
+        self.val_shape = pms.TEST["TEST_IMG_SIZE"]
 
         self.__visiual = visiual
         self.__visual_imgs = 0
@@ -51,7 +51,6 @@ class Evaluator(object):
                 visualize_boxes(image=img, boxes=boxes, labels=class_inds, probs=scores, class_labels=self.classes)
                 path = os.path.join(pms.PROJECT_PATH, "data/results/{}.jpg".format(self.__visual_imgs))
                 cv2.imwrite(path, img)
-                # print("saving predict images : {}".format(path))
 
                 self.__visual_imgs += 1
 
@@ -67,7 +66,6 @@ class Evaluator(object):
 
                 with open(os.path.join(self.pred_result_path, 'comp4_det_test_' + class_name + '.txt'), 'a') as f:
                     f.write(s)
-
 
         return self.__calc_APs()
 

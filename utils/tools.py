@@ -90,38 +90,7 @@ def bbox_iou(box1, box2, mode="xyxy"):
     return inter_area / union_area  # iou
 
 
-def img_preprocess2(image, bboxes, target_shape, correct_box=True):
-    """
-    RGB转换 -> resize(resize不改变原图的高宽比) -> normalize
-    并可以选择是否校正bbox
-    :param image_org: 要处理的图像
-    :param target_shape: 对图像处理后，期望得到的图像shape，存储格式为(h, w)
-    :return: 处理之后的图像，shape为target_shape
-    """
-    h_target, w_target = target_shape
-    h_org, w_org, _ = image.shape
-
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
-
-    resize_ratio = min(1.0 * w_target / w_org, 1.0 * h_target / h_org)
-    resize_w = int(resize_ratio * w_org)
-    resize_h = int(resize_ratio * h_org)
-    image_resized = cv2.resize(image, (resize_w, resize_h))
-
-    image_paded = np.full((h_target, w_target, 3), 128.0)
-    dw = int((w_target - resize_w) / 2)
-    dh = int((h_target - resize_h) / 2)
-    image_paded[dh:resize_h+dh, dw:resize_w+dw,:] = image_resized
-    image = image_paded / 255.0
-
-    if correct_box:
-        bboxes[:, [0, 2]] = bboxes[:, [0, 2]] * resize_ratio + dw
-        bboxes[:, [1, 3]] = bboxes[:, [1, 3]] * resize_ratio + dh
-        return image, bboxes
-    return image
-
-
-def iou_calc2(boxes1, boxes2):
+def iou_xywh_numpy(boxes1, boxes2):
     """
     :param boxes1: boxes1和boxes2的shape可以不相同，但是需要满足广播机制
     :param boxes2: 且需要保证最后一维为坐标维，以及坐标的存储结构为(x,y,w,h)，其中(x,y)是bbox的中心坐标
@@ -152,7 +121,7 @@ def iou_calc2(boxes1, boxes2):
     return IOU
 
 
-def iou_numpy(boxes1, boxes2):
+def iou_xyxy_numpy(boxes1, boxes2):
     """
     :param boxes1: boxes1和boxes2的shape可以不相同，但是需要满足广播机制
     :param boxes2: 且需要保证最后一维为坐标维，以及坐标的存储结构为(xmin, ymin, xmax, ymax)
@@ -177,25 +146,25 @@ def iou_numpy(boxes1, boxes2):
     return IOU
 
 
-# def iou_torch(boxes1, boxes2):
-#     """
-#     :param boxes1: boxes1和boxes2的shape可以不相同，但是需要满足广播机制，且需要是Tensor
-#     :param boxes2: 且需要保证最后一维为坐标维，以及坐标的存储结构为(xmin, ymin, xmax, ymax)
-#     :return: 返回boxes1和boxes2的IOU，IOU的shape为boxes1和boxes2广播后的shape[:-1]
-#     """
-#     boxes1_area = (boxes1[..., 2] - boxes1[..., 0]) * (boxes1[..., 3] - boxes1[..., 1])
-#     boxes2_area = (boxes2[..., 2] - boxes2[..., 0]) * (boxes2[..., 3] - boxes2[..., 1])
-#
-#     # 计算出boxes1与boxes1相交部分的左上角坐标、右下角坐标
-#     left_up = torch.max(boxes1[..., :2], boxes2[..., :2])
-#     right_down = torch.min(boxes1[..., 2:], boxes2[..., 2:])
-#
-#     # 因为两个boxes没有交集时，(right_down - left_up) < 0，所以maximum可以保证当两个boxes没有交集时，它们之间的iou为0
-#     inter_section = torch.max(right_down - left_up, torch.zeros_like(right_down))
-#     inter_area = inter_section[..., 0] * inter_section[..., 1]
-#     union_area = boxes1_area + boxes2_area - inter_area
-#     IOU = 1.0 * inter_area / union_area
-#     return IOU
+def iou_xyxy_torch(boxes1, boxes2):
+    """
+    :param boxes1: boxes1和boxes2的shape可以不相同，但是需要满足广播机制，且需要是Tensor
+    :param boxes2: 且需要保证最后一维为坐标维，以及坐标的存储结构为(xmin, ymin, xmax, ymax)
+    :return: 返回boxes1和boxes2的IOU，IOU的shape为boxes1和boxes2广播后的shape[:-1]
+    """
+    boxes1_area = (boxes1[..., 2] - boxes1[..., 0]) * (boxes1[..., 3] - boxes1[..., 1])
+    boxes2_area = (boxes2[..., 2] - boxes2[..., 0]) * (boxes2[..., 3] - boxes2[..., 1])
+
+    # 计算出boxes1与boxes1相交部分的左上角坐标、右下角坐标
+    left_up = torch.max(boxes1[..., :2], boxes2[..., :2])
+    right_down = torch.min(boxes1[..., 2:], boxes2[..., 2:])
+
+    # 因为两个boxes没有交集时，(right_down - left_up) < 0，所以maximum可以保证当两个boxes没有交集时，它们之间的iou为0
+    inter_section = torch.max(right_down - left_up, torch.zeros_like(right_down))
+    inter_area = inter_section[..., 0] * inter_section[..., 1]
+    union_area = boxes1_area + boxes2_area - inter_area
+    IOU = 1.0 * inter_area / union_area
+    return IOU
 
 
 def iou_xywh_torch(boxes1, boxes2):
@@ -226,7 +195,6 @@ def iou_xywh_torch(boxes1, boxes2):
     return IOU
 
 
-
 def nms(bboxes, score_threshold, iou_threshold, sigma=0.3, method='nms'):
     """
     :param bboxes:
@@ -247,7 +215,7 @@ def nms(bboxes, score_threshold, iou_threshold, sigma=0.3, method='nms'):
             best_bbox = cls_bboxes[max_ind]
             best_bboxes.append(best_bbox)
             cls_bboxes = np.concatenate([cls_bboxes[: max_ind], cls_bboxes[max_ind + 1:]])
-            iou = iou_numpy(best_bbox[np.newaxis, :4], cls_bboxes[:, :4])
+            iou = iou_xyxy_numpy(best_bbox[np.newaxis, :4], cls_bboxes[:, :4])
             assert method in ['nms', 'soft-nms']
             weight = np.ones((len(iou),), dtype=np.float32)
             if method == 'nms':
@@ -287,7 +255,7 @@ def plot_box(bboxes, img, id = None, color=None, line_thickness=None):
     for i, x in enumerate(bboxes):
         c1, c2 = (int(x[0]), int(x[1])), (int(x[2]), int(x[3]))
         cv2.rectangle(img, c1, c2, color, thickness=tl)
-        label = pms.CLASSES[int(x[4])]
+        label = pms.DATA["CLASSES"][int(x[4])]
         if label:
             tf = max(tl - 1, 1)  # font thickness
             t_size = cv2.getTextSize(label, 0, fontScale=tl / 3, thickness=tf)[0]
@@ -299,30 +267,3 @@ def plot_box(bboxes, img, id = None, color=None, line_thickness=None):
     # cv2.waitKey(0)
     img = cv2.cvtColor(img* 255.0, cv2.COLOR_RGB2BGR).astype(np.float32)
     cv2.imwrite("../data/dataset{}.jpg".format(id), img)
-
-
-def plot_box2(bboxes, img, id = None, color=None, line_thickness=None):
-    """
-    显示图片img和其所有的bboxes
-    :param bboxes: [N, 5] 表示N个bbox, 格式仅支持np.array
-    :param img: img格式为pytorch, 需要进行转换
-    :param color:
-    :param line_thickness:
-    """
-    img_size, _, _ = img.shape
-    tl = line_thickness or round(0.002 * max(img.shape[0:2])) + 1  # line thickness
-    color = color or [random.randint(0, 255) for _ in range(3)]
-    for i, x in enumerate(bboxes):
-        c1, c2 = (int(x[0]), int(x[1])), (int(x[2]), int(x[3]))
-        cv2.rectangle(img, c1, c2, color, thickness=tl)
-        label = pms.CLASSES[int(x[4])]
-        if label:
-            tf = max(tl - 1, 1)  # font thickness
-            t_size = cv2.getTextSize(label, 0, fontScale=tl / 3, thickness=tf)[0]
-            c2 = c1[0] + t_size[0], c1[1] - t_size[1] - 3
-            cv2.rectangle(img, c1, c2, color, -1)  # filled
-            # cv2.putText(img, label, (c1[0], c1[1] - 2), 0, tl / 3, [0, 0, 0], thickness=tf, lineType=cv2.LINE_AA)
-
-    # cv2.imshow("img-bbox", img[:, :, ::-1])
-    # cv2.waitKey(0)
-    cv2.imwrite("../data/images/{}.jpg".format(id), img[:, :, ::-1])

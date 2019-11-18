@@ -22,19 +22,19 @@ class Tester(object):
                  eval=False
                  ):
         self.img_size = img_size
-        self.__num_class = len(pms.CLASSES)
-        self.__conf_threshold = pms.conf_thresh
-        self.__nms_threshold = pms.nms_thresh
+        self.__num_class = pms.DATA["NUM"]
+        self.__conf_threshold = pms.TEST["CONF_THRESH"]
+        self.__nms_threshold = pms.TEST["NMS_THRESH"]
         self.__device = gpu.select_device(gpu_id)
         self.__visiual = visiual
         self.__eval = eval
-        self.__classes = pms.CLASSES
+        self.__classes = pms.DATA["CLASSES"]
 
         self.__model = Darknet(cfg_path=cfg_path, img_size=img_size).to(self.__device)
 
         self.__load_model_weights(weight_path)
 
-        self.__evalter = Evaluator(self.__model, visiual=True)
+        self.__evalter = Evaluator(self.__model, visiual=False)
 
 
     def __load_model_weights(self, weight_path):
@@ -56,6 +56,7 @@ class Tester(object):
 
                 img = cv2.imread(path)
                 assert img is not None
+
                 bboxes_prd = self.__evalter.get_bbox(img)
                 if bboxes_prd.shape[0] != 0:
                     boxes = bboxes_prd[..., :4]

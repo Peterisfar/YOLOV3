@@ -15,64 +15,35 @@ import argparse
 from eval.evaluator import *
 from utils.tools import *
 from tensorboardX import SummaryWriter
+from params import *
 
 
 class Trainer(object):
     def __init__(self, cfg_path,
-                        weight_path, # 权重文件路径
-                       anno_file_type,
-                        img_size,
-                        resume,  # 继续训练
-                        epochs,
-                        batch_size,
-                        multi_scale_train,
-                         num_works,
-                        augment, # 数据增强
-                        lr_init,
-                        lr_end,
-                        warm_up_epoch,
-                        mix_up,
-                        momentum,
-                        weight_decay,
-                        focal_loss,
-                        iou_threshold_loss,
+                        weight_path,
+                        resume,
                         gpu_id
                  ):
         init_seeds(0)
         self.device = gpu.select_device(gpu_id)
         self.start_epoch = 0
-        self.warmup_epoch = warm_up_epoch
         self.best_mAP = 0.
-        self.epochs = epochs
-        self.lr_init = lr_init
-        self.lr_end = lr_end
+        self.epochs = TRAIN["EPOCHS"]
         self.weight_path = weight_path
-        self.multi_scale_train = multi_scale_train
-
-        self.iou_threshold_loss = iou_threshold_loss
-        self.train_dataset = data.VocDataset(anno_file_type=anno_file_type,
-                                              img_size=img_size,
-                                              augment=augment,
-                                              mix_up=mix_up
-                                              )
-        self.train_dataloader = DataLoader(self.train_dataset,
-                                           batch_size=batch_size,
-                                           num_workers=num_works,
-                                           shuffle=True,
-                                           sampler=None,  # 可以用于分布式训练
-                                           )
-        self.yolov3 = Darknet(cfg_path=cfg_path, img_size=img_size).to(self.device)
+        self.multi_scale_train = TRAIN["MULTI_SCALE_TRAIN"]
+        self.train_dataset = data.VocDataset(anno_file_type="train", img_size=TRAIN["TRAIN_IMG_SIZE"])
+        self.train_dataloader = DataLoader(self.train_dataset, batch_size=TRAIN["BATCH_SIZE"],
+                                           num_workers=TRAIN["NUMBER_WORKERS"], shuffle=True)
+        self.yolov3 = Darknet(cfg_path=cfg_path, img_size=TRAIN["TRAIN_IMG_SIZE"]).to(self.device)
         self.yolov3.apply(tools.weights_init_normal)
 
-        self.optimizer = optim.SGD(self.yolov3.parameters(),
-                                   lr=lr_init,
-                                   momentum=momentum,
-                                   weight_decay=weight_decay
-                                   )
+        self.optimizer = optim.SGD(self.yolov3.parameters(), lr=TRAIN["LR_INIT"], momentum=TRAIN["MOMENTUM"],
+                                   weight_decay=TRAIN["WEIGHT_DECAY"])
         # self.optimizer = optim.Adam(self.yolov3.parameters(), lr = lr_init, weight_decay=0.9995)
 
-        self.criterion = YoloV3Loss(focal_loss=focal_loss,
-                                    iou_threshold_loss=iou_threshold_loss)
+        self.criterion = YoloV3Loss(anchors=MODEL["ANCHORS"], strides=MODEL["STRIDES"],
+                                    iou_threshold_loss=TRAIN["IOU_THRESHOLD_LOSS"])
+
         self.__load_model_weights(weight_path, resume)
         self.scheduler = lr_scheduler.MultiStepLR(self.optimizer, milestones=[25, 40], gamma=0.1,
                                                   last_epoch=self.start_epoch - 1)
@@ -115,14 +86,11 @@ class Trainer(object):
         print(self.yolov3)
         print("Train datasets number is : {}".format(len(self.train_dataset)))
 
-
         for epoch in range(self.start_epoch, self.epochs):
             self.yolov3.train()
-
             self.scheduler.step()
-            # self.optimizer.zero_grad()
 
-            mloss = torch.zeros(4).to(self.device)  # mean losses
+            mloss = torch.zeros(4)
             for i, (imgs, label_sbbox, label_mbbox, label_lbbox, sbboxes, mbboxes, lbboxes)  in enumerate(self.train_dataloader):
 
                 imgs = imgs.to(self.device)
@@ -143,8 +111,8 @@ class Trainer(object):
                 self.optimizer.step()
 
                 # Update running mean of tracked metrics
-                loss_items = torch.tensor([loss_xywh, loss_conf, loss_cls, loss]).to(self.device)
-                mloss = (mloss * i + loss_items) / (i + 1) # 平均值
+                loss_items = torch.tensor([loss_xywh, loss_conf, loss_cls, loss])
+                mloss = (mloss * i + loss_items) / (i + 1)
 
                 # Print batch results
                 if i%10==0:
@@ -170,7 +138,7 @@ class Trainer(object):
                     mAP = mAP/self.train_dataset.num_classes
                     print('mAP:%g'%(mAP))
 
-            self.__save_model_weights(epoch, mAP)  # TODO:BUG CUDA out of memory
+            self.__save_model_weights(epoch, mAP)
             print('best mAP : %g' % (self.best_mAP))
 
 
@@ -178,42 +146,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--cfg_path', type=str, default='cfg/yolov3-voc.cfg', help='cfg file path')
     parser.add_argument('--weight_path', type=str, default='weight', help='weight file path')
-    parser.add_argument('--anno_file_type', type=str, default='train', help='data file type')
-    parser.add_argument('--img_size', type=int, default=448, help='image size')
     parser.add_argument('--resume', action='store_true',default=False,  help='resume training flag')
-    parser.add_argument('--epochs', type=int, default=50, help='number of epochs')
-    parser.add_argument('--batch_size', type=int, default=8, help='batch size')
-    parser.add_argument('--multi_scale_train', action='store_false', default=False, help='multi scale train flag')
-    parser.add_argument('--num_works', type=int, default=4, help='number of pytorch dataloader workers') # Bug
-    parser.add_argument('--augment', action='store_false', default=True, help='data augment flag')
-    parser.add_argument('--lr_init', type=float, default=0.0001, help='learning rate at start')
-    parser.add_argument('--lr_end', type=float, default=10e-6, help='learning rate at end')
-    parser.add_argument('--warm_up_epoch', type=int, default=2, help='the epochs for lr warm up')
-    parser.add_argument('--mix_up', action='store_false', default=False, help='mix up flag')
-    parser.add_argument('--momentum', type=float, default=0.9, help='optimizer momentum')
-    parser.add_argument('--weight_decay', type=float, default=0.0005, help='optimizer weight decay')
-    parser.add_argument('--focal_loss', action='store_false', default=False, help='focal loss flag')
-    parser.add_argument('--iou_threshold_loss', type=float, default=0.5, help='iou threshold in calculate loss')
-    parser.add_argument('--label_smoothing', action='store_false', default=False, help='label smoothing flag')
     parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
     opt = parser.parse_args()
 
     Trainer(cfg_path=opt.cfg_path,
             weight_path=opt.weight_path,
-            anno_file_type=opt.anno_file_type,
-            img_size=opt.img_size,
             resume=opt.resume,
-            epochs=opt.epochs,
-            batch_size=opt.batch_size,
-            multi_scale_train=opt.multi_scale_train,
-            num_works=opt.num_works,
-            augment=opt.augment,
-            lr_init=opt.lr_init,
-            lr_end=opt.lr_end,
-            warm_up_epoch=opt.warm_up_epoch,
-            mix_up=opt.mix_up,
-            momentum=opt.momentum,
-            weight_decay=opt.weight_decay,
-            focal_loss=opt.focal_loss,
-            iou_threshold_loss=opt.iou_threshold_loss,
             gpu_id=opt.gpu_id).train()
