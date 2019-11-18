@@ -97,6 +97,8 @@ DATA_TEST=./data/test # your own images
 CUDA_VISIBLE_DEVICES=0 python3 test.py --cfg_path $CFG_PATH --weight_path $WEIGHT_PATH --gpu_id 0 --visiual $DATA_TEST --eval
 
 ```
+The images can be seen in the `data/`
+
 ---
 ## TODO
 
