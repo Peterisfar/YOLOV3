@@ -7,8 +7,8 @@ import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.data import DataLoader
 import utils.datasets as data
-import os
-os.environ["CUDA_VISIBLE_DEVICES"]='1'
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"]='1'
 import time
 import random
 import argparse
@@ -37,8 +37,8 @@ class Trainer(object):
         self.yolov3 = Darknet(cfg_path=cfg_path, img_size=TRAIN["TRAIN_IMG_SIZE"]).to(self.device)
         self.yolov3.apply(tools.weights_init_normal)
 
-        self.optimizer = optim.SGD(self.yolov3.parameters(), lr=TRAIN["LR_INIT"], momentum=TRAIN["MOMENTUM"],
-                                   weight_decay=TRAIN["WEIGHT_DECAY"])
+        self.optimizer = optim.SGD(self.yolov3.parameters(), lr=TRAIN["LR_INIT"],
+                                   momentum=TRAIN["MOMENTUM"], weight_decay=TRAIN["WEIGHT_DECAY"])
         # self.optimizer = optim.Adam(self.yolov3.parameters(), lr = lr_init, weight_decay=0.9995)
 
         self.criterion = YoloV3Loss(anchors=MODEL["ANCHORS"], strides=MODEL["STRIDES"],

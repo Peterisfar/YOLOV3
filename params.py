@@ -2,7 +2,6 @@
 # project
 DATA_PATH = "/home/leon/data/data/VOC"
 PROJECT_PATH = "/home/leon/doc/code/python_code/YOLOV3"
-PRE_TRAIN_WEIGHT_PATH = "/home/leon/doc/code/python_code/YOLOV3/weights/darknet53.conv.74"
 
 
 DATA = {"CLASSES":['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',

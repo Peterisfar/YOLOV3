@@ -6,14 +6,29 @@ from utils import tools
 import params as pms
 
 
-class YoloV3Loss(object):
+class FocalLoss(nn.Module):
+    def __init__(self, gamma=2.0, alpha=1.0, reduction="mean"):
+        super(FocalLoss, self).__init__()
+        self.__gamma = gamma
+        self.__alpha = alpha
+        self.__loss = nn.BCEWithLogitsLoss(reduction=reduction)
+
+
+    def forward(self, input, target):
+        loss = self.__loss(input=input, target=target)
+        loss *= self.__alpha * torch.pow(torch.abs(target - torch.sigmoid(input)), self.__gamma)
+
+        return loss
+
+
+class YoloV3Loss(nn.Module):
     def __init__(self, anchors, strides, iou_threshold_loss=0.5):
+        super(YoloV3Loss, self).__init__()
         self.__iou_threshold_loss = iou_threshold_loss
         self.__anchors = anchors
         self.__strides = strides
 
-
-    def __call__(self, p, p_d, label_sbbox, label_mbbox, label_lbbox, sbboxes, mbboxes, lbboxes):
+    def forward(self, p, p_d, label_sbbox, label_mbbox, label_lbbox, sbboxes, mbboxes, lbboxes):
         """
         :param p: Predicted offset values for three detection layers.
                     The shape is [p0, p1, p2], ex. p0=[bs, grid, grid, anchors, tx+ty+tw+th+conf+cls_20]
@@ -71,6 +86,7 @@ class YoloV3Loss(object):
         """
         BCE = nn.BCEWithLogitsLoss(reduction="none")
         MSE = nn.MSELoss(reduction="none")
+        FOCAL = FocalLoss(gamma=2, alpha=1.0, reduction="none")
 
         batch_size, grid = p.shape[:2]
         img_size = stride * grid
@@ -109,8 +125,11 @@ class YoloV3Loss(object):
         iou_max = iou.max(-1, keepdim=True)[0]
         label_noobj_mask = (1.0 - label_obj_mask) * (iou_max < self.__iou_threshold_loss).float()
 
-        loss_conf = label_obj_mask * BCE(input=p_conf, target=label_obj_mask) + \
-                    label_noobj_mask * BCE(input=p_conf, target=label_obj_mask)
+        # loss_conf = label_obj_mask * BCE(input=p_conf, target=label_obj_mask) + \
+        #             label_noobj_mask * BCE(input=p_conf, target=label_obj_mask)
+        loss_conf = label_obj_mask * FOCAL(input=p_conf, target=label_obj_mask) + \
+                    label_noobj_mask * FOCAL(input=p_conf, target=label_obj_mask)
+
 
         # loss classes
         loss_cls = label_obj_mask * BCE(input=p_cls, target=label_cls)
