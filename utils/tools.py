@@ -11,13 +11,13 @@ import params as pms
 def weights_init_normal(m):
     classname = m.__class__.__name__
     if classname.find('Conv2d') != -1:
-        print("{} initing".format(m))
+        print("initing {} ".format(m))
         torch.nn.init.normal_(m.weight.data, 0.0, 0.01)
         if m.bias is not None:
             m.bias.data.zero_()
 
     elif classname.find('BatchNorm2d') != -1:
-        print("{} initing".format(m))
+        print("initing {} ".format(m))
 
         torch.nn.init.constant_(m.weight.data, 1.0)
         torch.nn.init.constant_(m.bias.data, 0.0)
@@ -193,6 +193,41 @@ def iou_xywh_torch(boxes1, boxes2):
     union_area = boxes1_area + boxes2_area - inter_area
     IOU = 1.0 * inter_area / union_area
     return IOU
+
+
+def GIOU_xywh_torch(boxes1, boxes2):
+    """
+     https://arxiv.org/abs/1902.09630
+    boxes1(boxes2)' shape is [..., (x,y,w,h)].The size is for original image.
+    """
+    # xywh->xyxy
+    boxes1 = torch.cat([boxes1[..., :2] - boxes1[..., 2:] * 0.5,
+                        boxes1[..., :2] + boxes1[..., 2:] * 0.5], dim=-1)
+    boxes2 = torch.cat([boxes2[..., :2] - boxes2[..., 2:] * 0.5,
+                        boxes2[..., :2] + boxes2[..., 2:] * 0.5], dim=-1)
+
+    boxes1 = torch.cat([torch.min(boxes1[..., :2], boxes1[..., 2:]),
+                        torch.max(boxes1[..., :2], boxes1[..., 2:])], dim=-1)
+    boxes2 = torch.cat([torch.min(boxes2[..., :2], boxes2[..., 2:]),
+                        torch.max(boxes2[..., :2], boxes2[..., 2:])], dim=-1)
+
+    boxes1_area = (boxes1[..., 2] - boxes1[..., 0]) * (boxes1[..., 3] - boxes1[..., 1])
+    boxes2_area = (boxes2[..., 2] - boxes2[..., 0]) * (boxes2[..., 3] - boxes2[..., 1])
+
+    inter_left_up = torch.max(boxes1[..., :2], boxes2[..., :2])
+    inter_right_down = torch.min(boxes1[..., 2:], boxes2[..., 2:])
+    inter_section = torch.max(inter_right_down - inter_left_up, torch.zeros_like(inter_right_down))
+    inter_area =  inter_section[..., 0] * inter_section[..., 1]
+    union_area = boxes1_area + boxes2_area - inter_area
+    IOU = 1.0 * inter_area / union_area
+
+    enclose_left_up = torch.min(boxes1[..., :2], boxes2[..., :2])
+    enclose_right_down = torch.max(boxes1[..., 2:], boxes2[..., 2:])
+    enclose_section = torch.max(enclose_right_down - enclose_left_up, torch.zeros_like(enclose_right_down))
+    enclose_area = enclose_section[..., 0] * enclose_section[..., 1]
+
+    GIOU = IOU - 1.0 * (enclose_area - union_area) / enclose_area
+    return GIOU
 
 
 def nms(bboxes, score_threshold, iou_threshold, sigma=0.3, method='nms'):

@@ -100,7 +100,7 @@ class Resize(object):
         return image
 
 
-class MixupDetection(object):
+class Mixup(object):
     def __init__(self, p=0.5):
         self.p = p
 

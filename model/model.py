@@ -59,7 +59,7 @@ def create_modules(module_defs):
             modules.add_module("upsample_%d"%i, upsample)
 
         elif module_def["type"] == "route":
-            layers = [int(x) for x in module_def["layers"].split(',')] # 注意：int(" 1") 和int("1 ")都为1，即空格不影响
+            layers = [int(x) for x in module_def["layers"].split(',')] # Note：int(" 1") and int("1 ")
             filters = sum([output_filters[i+1 if i >0 else i] for i in layers])
             modules.add_module("route_%d"%i, EmptyLayer())
 
@@ -113,8 +113,8 @@ class YOLOLayer(nn.Module):
         bs, nG = p.shape[0], p.shape[-1]
         p = p.view(bs, self.nA, 5 + self.nC , nG, nG).permute(0, 3, 4, 1, 2)
 
-        # 训练和测试都进行解码
-        p_de = self.__decode(p.clone().detach(), img_size)
+        # train and test all need to decode
+        p_de = self.__decode(p.clone(), img_size)  # note p.detach() will result in giou grad false.
         return (p, p_de)
 
     def __decode(self, p, img_size):
@@ -148,7 +148,7 @@ class YOLOLayer(nn.Module):
         pred_prob = torch.sigmoid(conv_raw_prob)
         pred_bbox = torch.cat([pred_xywh, pred_conf, pred_prob], dim=-1)
 
-        return pred_bbox.view(-1, 5+self.nC) if not self.training else pred_bbox  # 例如 shape : [bs, 13*13*3+26*26*3+52*52*3, 25]
+        return pred_bbox.view(-1, 5+self.nC) if not self.training else pred_bbox
 
 
 class Darknet(nn.Module):
@@ -180,7 +180,7 @@ class Darknet(nn.Module):
                 layer_i = int(module_def["from"])
                 x = layer_outputs[-1] + layer_outputs[layer_i]
 
-            elif mtype == "yolo": # yolo层用到FPN各层的特征图和原图尺寸img_size,其中img_size是用来提供缩放比例的
+            elif mtype == "yolo":
                 x = module[0](x, img_size)
                 output.append(x)
             layer_outputs.append(x)

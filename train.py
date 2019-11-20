@@ -103,7 +103,7 @@ class Trainer(object):
 
                 p, p_d = self.yolov3(imgs)
 
-                loss, loss_xywh, loss_conf, loss_cls = self.criterion(p, p_d, label_sbbox, label_mbbox,
+                loss, loss_giou, loss_conf, loss_cls = self.criterion(p, p_d, label_sbbox, label_mbbox,
                                                   label_lbbox, sbboxes, mbboxes, lbboxes)
 
                 self.optimizer.zero_grad()
@@ -111,12 +111,12 @@ class Trainer(object):
                 self.optimizer.step()
 
                 # Update running mean of tracked metrics
-                loss_items = torch.tensor([loss_xywh, loss_conf, loss_cls, loss])
+                loss_items = torch.tensor([loss_giou, loss_conf, loss_cls, loss])
                 mloss = (mloss * i + loss_items) / (i + 1)
 
                 # Print batch results
                 if i%10==0:
-                    s = ('Epoch:[ %d | %d ]    Batch:[ %d | %d ]    loss_xywh: %.4f    loss_conf: %.4f    loss_cls: %.4f    loss: %.4f    '
+                    s = ('Epoch:[ %d | %d ]    Batch:[ %d | %d ]    loss_giou: %.4f    loss_conf: %.4f    loss_cls: %.4f    loss: %.4f    '
                          'lr: %g') % (epoch, self.epochs - 1, i, len(self.train_dataloader) - 1, mloss[0],mloss[1], mloss[2], mloss[3],
                                       self.optimizer.param_groups[0]['lr'])
                     print(s)
