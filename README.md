@@ -14,6 +14,7 @@ Subsequently, i will continue to update the code to make it more concise , and a
 | YOLOV3-448-544 | 2007trainval + 2012trainval | 2007test | 0.769 | 0.768 | baseline(augument + step lr) |
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.793  | 0.803 | \+multi-scale training |
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.806  | 0.811 | \+focal loss(note the conf_loss in the start is lower) |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test |  -  | 0.813 | \+giou loss |
   
   
 `Note` : 
@@ -42,9 +43,11 @@ pip3 install -r requirements.txt --user
 * [x] Step lr Schedule 
 * [x] Multi-scale Training (320 to 640)
 * [x] focal loss
+* [x] GIOU
 * [ ] Mixup
 * [ ] Label smooth
-* [ ] GIOU
+* [ ] cosine lr
+
 
 
 ---
