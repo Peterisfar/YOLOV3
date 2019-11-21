@@ -107,6 +107,7 @@ class VocDataset(Dataset):
             # onehot
             one_hot = np.zeros(self.num_classes, dtype=np.float32)
             one_hot[bbox_class_ind] = 1.0
+            one_hot_smooth = dataAug.LabelSmooth()(one_hot, self.num_classes)
 
             # convert "xyxy" to "xywh"
             bbox_xywh = np.concatenate([(bbox_coor[2:] + bbox_coor[:2]) * 0.5,
@@ -132,7 +133,7 @@ class VocDataset(Dataset):
                     # Bug : 当多个bbox对应同一个anchor时，默认将该anchor分配给最后一个bbox
                     label[i][yind, xind, iou_mask, 0:4] = bbox_xywh
                     label[i][yind, xind, iou_mask, 4:5] = 1.0
-                    label[i][yind, xind, iou_mask, 5:] = one_hot
+                    label[i][yind, xind, iou_mask, 5:] = one_hot_smooth
 
                     bbox_ind = int(bbox_count[i] % 150)  # BUG : 150为一个先验值,内存消耗大
                     bboxes_xywh[i][bbox_ind, :4] = bbox_xywh
@@ -149,7 +150,7 @@ class VocDataset(Dataset):
 
                 label[best_detect][yind, xind, best_anchor, 0:4] = bbox_xywh
                 label[best_detect][yind, xind, best_anchor, 4:5] = 1.0
-                label[best_detect][yind, xind, best_anchor, 5:] = one_hot
+                label[best_detect][yind, xind, best_anchor, 5:] = one_hot_smooth
 
                 bbox_ind = int(bbox_count[best_detect] % 150)
                 bboxes_xywh[best_detect][bbox_ind, :4] = bbox_xywh
