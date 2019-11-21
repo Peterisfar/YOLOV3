@@ -1,5 +1,7 @@
 import xml.etree.ElementTree as ET
-import params as pms
+import sys
+sys.path.append("..")
+import params as  pms 
 import os
 from tqdm import tqdm
 
@@ -13,7 +15,7 @@ def parse_voc_annotation(data_path, file_type, anno_path, use_difficult_bbox=Fal
     :param use_difficult_bbox: 是否适用difficult==1的bbox
     :return: 数据集大小
     """
-    classes = pms.CLASSES
+    classes = pms.DATA["CLASSES"]
     img_inds_file = os.path.join(data_path, 'ImageSets', 'Main', file_type+'.txt')
     with open(img_inds_file, 'r') as f:
         lines = f.readlines()

@@ -14,6 +14,7 @@ Subsequently, i will continue to update the code to make it more concise , and a
 | YOLOV3-448-544 | 2007trainval + 2012trainval | 2007test | 0.769 | 0.768 | baseline(augument + step lr) |
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.793  | 0.803 | \+multi-scale training |
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.806  | 0.811 | \+focal loss(note the conf_loss in the start is lower) |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test |  -  | 0.813 | \+giou loss |
   
   
 `Note` : 
@@ -42,9 +43,11 @@ pip3 install -r requirements.txt --user
 * [x] Step lr Schedule 
 * [x] Multi-scale Training (320 to 640)
 * [x] focal loss
+* [x] GIOU
 * [ ] Mixup
 * [ ] Label smooth
-* [ ] GIOU
+* [ ] cosine lr
+
 
 
 ---
@@ -54,8 +57,9 @@ pip3 install -r requirements.txt --user
 ```Bash
 git clone https://github.com/Peterisfar/YOLOV3.git
 ```
+update the `"PROJECT_PATH"` in the params.py.
 ### 2、Download dataset
-* Download Pascal VOC dataset : [VOC 2012_trainval](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar) 、[VOC 2007_trainval](http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtrainval_06-Nov-2007.tar)、[VOC2007_test](http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar)
+* Download Pascal VOC dataset : [VOC 2012_trainval](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar) 、[VOC 2007_trainval](http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtrainval_06-Nov-2007.tar)、[VOC2007_test](http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar). put them in the dir, and update the `"DATA_PATH"` in the params.py.
 * Convert data format : Convert the pascal voc *.xml format to custom format (Image_path0 &nbsp; xmin0,ymin0,xmax0,ymax0,class0 &nbsp; xmin1,ymin1...)
 
 ```bash
