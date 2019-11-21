@@ -15,7 +15,7 @@ Subsequently, i will continue to update the code to make it more concise , and a
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.793  | 0.803 | \+multi-scale training |
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.806  | 0.811 | \+focal loss(note the conf_loss in the start is lower) |
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test |  -  | 0.813 | \+giou loss |
-  
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test |  -  | 0.821 | \+label smooth |  
   
 `Note` : 
 
@@ -44,8 +44,8 @@ pip3 install -r requirements.txt --user
 * [x] Multi-scale Training (320 to 640)
 * [x] focal loss
 * [x] GIOU
+* [x] Label smooth
 * [ ] Mixup
-* [ ] Label smooth
 * [ ] cosine lr
 
 
