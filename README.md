@@ -71,7 +71,7 @@ python3 voc.py # get train_annotation.txt and test_annotation.txt in data/
 
 ### 3、Download weight file
 * Darknet pre-trained weight :  [darknet53-448.weights](https://pjreddie.com/media/files/darknet53_448.weights) 
-* This repository test weight : [best.pt](https://pan.baidu.com/s/1wQgaBe81-OPm0YlbZFR_Kw)
+* This repository test weight : [best.pt](https://pan.baidu.com/s/1fCCJV4KPgFiHc-zWDZLwKA)
 
 Make dir `weight/` in the YOLOV3 and put the weight file in.
 
