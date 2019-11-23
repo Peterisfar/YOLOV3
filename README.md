@@ -16,6 +16,7 @@ Subsequently, i will continue to update the code to make it more concise , and a
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.806  | 0.811 | \+focal loss(note the conf_loss in the start is lower) |
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test |  -  | 0.813 | \+giou loss |
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test |  -  | 0.821 | \+label smooth |  
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test |  -  | 0.826 | \+mixup |  
   
 `Note` : 
 
@@ -45,7 +46,7 @@ pip3 install -r requirements.txt --user
 * [x] focal loss
 * [x] GIOU
 * [x] Label smooth
-* [ ] Mixup
+* [x] Mixup
 * [ ] cosine lr
 
 
@@ -68,7 +69,7 @@ cd utils
 python3 voc.py # get train_annotation.txt and test_annotation.txt in data/
 ```
 
-### 3、Download pre-weight 
+### 3、Download weight file
 * Darknet pre-trained weight :  [darknet53-448.weights](https://pjreddie.com/media/files/darknet53_448.weights) 
 * This repository test weight : [best.pt](https://pan.baidu.com/s/1wQgaBe81-OPm0YlbZFR_Kw)
 
@@ -97,7 +98,7 @@ CUDA_VISIBLE_DEVICES=0 nohup python3 -u train.py --cfg_path $CFG_PATH --weight_p
 You should define your weight file path `WEIGHT_FILE` and images file path `IMAGE_FILE`
 ```Bash
 CFG_PATH=cfg/yolov3-voc.cfg
-WEIGHT_PATH=weight
+WEIGHT_PATH=weight/best.pt
 DATA_TEST=./data/test # your own images
 
 CUDA_VISIBLE_DEVICES=0 python3 test.py --cfg_path $CFG_PATH --weight_path $WEIGHT_PATH --gpu_id 0 --visiual $DATA_TEST --eval
