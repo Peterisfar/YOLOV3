@@ -33,7 +33,7 @@ class YoloV3Loss(nn.Module):
         :param p_d: Decodeed predicted value. The size of value is for image size.
                     ex. p_d0=[bs, grid, grid, anchors, x+y+w+h+conf+cls_20]
         :param label_sbbox: Small detection layer's label. The size of value is for original image size.
-                    shape is [bs, grid, grid, anchors, x+y+w+h+conf+cls_20]
+                    shape is [bs, grid, grid, anchors, x+y+w+h+conf+mix+cls_20]
         :param label_mbbox: Same as label_sbbox.
         :param label_lbbox: Same as label_sbbox.
         :param sbboxes: Small detection layer bboxes.The size of value is for original image size.
@@ -90,7 +90,8 @@ class YoloV3Loss(nn.Module):
 
         label_xywh = label[..., :4]
         label_obj_mask = label[..., 4:5]
-        label_cls = label[..., 5:]
+        label_cls = label[..., 6:]
+        label_mix = label[..., 5:6]
 
 
         # loss giou
@@ -98,7 +99,7 @@ class YoloV3Loss(nn.Module):
 
         # The scaled weight of bbox is used to balance the impact of small objects and large objects on loss.
         bbox_loss_scale = 2.0 - 1.0 * label_xywh[..., 2:3] * label_xywh[..., 3:4] / (img_size ** 2)
-        loss_giou = label_obj_mask * bbox_loss_scale * (1.0 - giou)
+        loss_giou = label_obj_mask * bbox_loss_scale * (1.0 - giou) * label_mix
 
 
         # loss confidence
@@ -106,12 +107,12 @@ class YoloV3Loss(nn.Module):
         iou_max = iou.max(-1, keepdim=True)[0]
         label_noobj_mask = (1.0 - label_obj_mask) * (iou_max < self.__iou_threshold_loss).float()
 
-        loss_conf = label_obj_mask * FOCAL(input=p_conf, target=label_obj_mask) + \
-                    label_noobj_mask * FOCAL(input=p_conf, target=label_obj_mask)
+        loss_conf = (label_obj_mask * FOCAL(input=p_conf, target=label_obj_mask) +
+                    label_noobj_mask * FOCAL(input=p_conf, target=label_obj_mask)) * label_mix
 
 
         # loss classes
-        loss_cls = label_obj_mask * BCE(input=p_cls, target=label_cls)
+        loss_cls = label_obj_mask * BCE(input=p_cls, target=label_cls) * label_mix
 
 
         loss_giou = (torch.sum(loss_giou)) / batch_size
@@ -127,9 +128,9 @@ if __name__ == "__main__":
     net = Darknet("cfg/yolov3-voc.cfg")
 
     p, p_d = net(torch.rand(3, 3, 416, 416))
-    label_sbbox = torch.rand(3,  52, 52, 3,25)
-    label_mbbox = torch.rand(3,  26, 26, 3, 25)
-    label_lbbox = torch.rand(3, 13, 13, 3,25)
+    label_sbbox = torch.rand(3,  52, 52, 3,26)
+    label_mbbox = torch.rand(3,  26, 26, 3, 26)
+    label_lbbox = torch.rand(3, 13, 13, 3,26)
     sbboxes = torch.rand(3, 150, 4)
     mbboxes = torch.rand(3, 150, 4)
     lbboxes = torch.rand(3, 150, 4)

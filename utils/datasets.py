@@ -8,11 +8,13 @@ from torch.utils.data import Dataset, DataLoader
 import params as pms
 import cv2
 import numpy as np
+import random
 # from . import data_augment as dataAug
 # from . import tools
 
 import utils.data_augment as dataAug
 import utils.tools as tools
+
 
 class VocDataset(Dataset):
     def __init__(self, anno_file_type, img_size=416):
@@ -28,9 +30,18 @@ class VocDataset(Dataset):
     def __getitem__(self, item):
 
         img_org, bboxes_org = self.__parse_annotation(self.__annotations[item])
-        img = img_org.transpose(2, 0, 1)  # HWC->CHW
+        img_org = img_org.transpose(2, 0, 1)  # HWC->CHW
+        
+        item_mix = random.randint(0, len(self.__annotations)-1)
+        img_mix, bboxes_mix = self.__parse_annotation(self.__annotations[item_mix])
+        img_mix = img_mix.transpose(2, 0, 1)
 
-        label_sbbox, label_mbbox, label_lbbox, sbboxes, mbboxes, lbboxes = self.__creat_label(bboxes_org)
+
+        img, bboxes = dataAug.Mixup()(img_org, bboxes_org, img_mix, bboxes_mix)
+        del img_org, bboxes_org, img_mix, bboxes_mix
+
+
+        label_sbbox, label_mbbox, label_lbbox, sbboxes, mbboxes, lbboxes = self.__creat_label(bboxes)
 
         img = torch.from_numpy(img).float()
         label_sbbox = torch.from_numpy(label_sbbox).float()
@@ -95,14 +106,18 @@ class VocDataset(Dataset):
         train_output_size = self.img_size / strides
         anchors_per_scale = pms.MODEL["ANCHORS_PER_SCLAE"]
 
-        label = [np.zeros((int(train_output_size[i]), int(train_output_size[i]), anchors_per_scale, 5+self.num_classes))
-                                                                                for i in range(3)]
-        bboxes_xywh = [np.zeros((150, 4)) for _ in range(3)]
+        label = [np.zeros((int(train_output_size[i]), int(train_output_size[i]), anchors_per_scale, 6+self.num_classes))
+                                                                      for i in range(3)]
+        for i in range(3):
+            label[i][..., 5] = 1.0
+
+        bboxes_xywh = [np.zeros((150, 4)) for _ in range(3)]   # Darknet the max_num is 30
         bbox_count = np.zeros((3,))
 
         for bbox in bboxes:
             bbox_coor = bbox[:4]
             bbox_class_ind = int(bbox[4])
+            bbox_mix = bbox[5]
 
             # onehot
             one_hot = np.zeros(self.num_classes, dtype=np.float32)
@@ -133,7 +148,8 @@ class VocDataset(Dataset):
                     # Bug : 当多个bbox对应同一个anchor时，默认将该anchor分配给最后一个bbox
                     label[i][yind, xind, iou_mask, 0:4] = bbox_xywh
                     label[i][yind, xind, iou_mask, 4:5] = 1.0
-                    label[i][yind, xind, iou_mask, 5:] = one_hot_smooth
+                    label[i][yind, xind, iou_mask, 5:6] = bbox_mix
+                    label[i][yind, xind, iou_mask, 6:] = one_hot_smooth
 
                     bbox_ind = int(bbox_count[i] % 150)  # BUG : 150为一个先验值,内存消耗大
                     bboxes_xywh[i][bbox_ind, :4] = bbox_xywh
@@ -150,7 +166,8 @@ class VocDataset(Dataset):
 
                 label[best_detect][yind, xind, best_anchor, 0:4] = bbox_xywh
                 label[best_detect][yind, xind, best_anchor, 4:5] = 1.0
-                label[best_detect][yind, xind, best_anchor, 5:] = one_hot_smooth
+                label[best_detect][yind, xind, best_anchor, 5:6] = bbox_mix
+                label[best_detect][yind, xind, best_anchor, 6:] = one_hot_smooth
 
                 bbox_ind = int(bbox_count[best_detect] % 150)
                 bboxes_xywh[best_detect][bbox_ind, :4] = bbox_xywh
@@ -178,10 +195,10 @@ if __name__ == "__main__":
             print(lbboxes.shape)
 
             if img.shape[0] == 1:
-                labels = np.concatenate([label_sbbox.reshape(-1, 25), label_mbbox.reshape(-1, 25),
-                                         label_lbbox.reshape(-1, 25)], axis=0)
+                labels = np.concatenate([label_sbbox.reshape(-1, 26), label_mbbox.reshape(-1, 26),
+                                         label_lbbox.reshape(-1, 26)], axis=0)
                 labels_mask = labels[..., 4]>0
-                labels = np.concatenate([labels[labels_mask][..., :4], np.argmax(labels[labels_mask][..., 5:],
+                labels = np.concatenate([labels[labels_mask][..., :4], np.argmax(labels[labels_mask][..., 6:],
                                         axis=-1).reshape(-1, 1)], axis=-1)
 
                 print(labels.shape)

@@ -76,7 +76,7 @@ class Trainer(object):
         torch.save(chkpt, last_weight)
 
         if self.best_mAP == mAP:
-            torch.save(chkpt, best_weight)
+            torch.save(chkpt['model'], best_weight)
 
         if epoch > 0 and epoch % 10 == 0:
             torch.save(chkpt, os.path.join(self.weight_path, 'backup_epoch%g.pt'%epoch))

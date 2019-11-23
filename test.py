@@ -42,7 +42,7 @@ class Tester(object):
 
         weight = os.path.join(weight_path)
         chkpt = torch.load(weight, map_location=self.__device)
-        self.__model.load_state_dict(chkpt['model'])
+        self.__model.load_state_dict(chkpt)
         print("loading weight file is done")
         del chkpt
 
