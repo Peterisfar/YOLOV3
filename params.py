@@ -29,7 +29,8 @@ TRAIN = {
          "NUMBER_WORKERS":4,
          "MOMENTUM":0.9,
          "WEIGHT_DECAY":0.0005,
-         "LR_INIT":0.0001,
+         "LR_INIT":1e-4,
+         "LR_END":1e-6,
          "WARMUP_EPOCHS":2  # or None
          }
 

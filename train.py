@@ -22,7 +22,8 @@ from utils import cosine_lr_scheduler
 
 
 class Trainer(object):
-    def __init__(self, weight_path,
+    def __init__(self,  cfg_path,
+                        weight_path,
                         resume,
                         gpu_id
                  ):
@@ -38,7 +39,7 @@ class Trainer(object):
                                            batch_size=TRAIN["BATCH_SIZE"],
                                            num_workers=TRAIN["NUMBER_WORKERS"],
                                            shuffle=True)
-        self.yolov3 = Yolov3().to(self.device)
+        self.yolov3 = Darknet(cfg_path=cfg_path, img_size=TRAIN["TRAIN_IMG_SIZE"]).to(self.device)
 
 
         self.optimizer = optim.SGD(self.yolov3.parameters(), lr=TRAIN["LR_INIT"],
@@ -54,6 +55,7 @@ class Trainer(object):
         self.scheduler = cosine_lr_scheduler.CosineDecayLR(self.optimizer,
                                                           T_max=self.epochs*len(self.train_dataloader),
                                                           lr_init=TRAIN["LR_INIT"],
+                                                          lr_min=TRAIN["LR_END"],
                                                           warmup=TRAIN["WARMUP_EPOCHS"]*len(self.train_dataloader))
 
 
@@ -155,11 +157,13 @@ class Trainer(object):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument('--cfg_path', type=str, default='cfg/yolov3-voc.cfg', help='cfg file path')
     parser.add_argument('--weight_path', type=str, default='weight', help='weight file path')
     parser.add_argument('--resume', action='store_true',default=False,  help='resume training flag')
     parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
     opt = parser.parse_args()
 
-    Trainer(weight_path=opt.weight_path,
+    Trainer(cfg_path=opt.cfg_path,
+            weight_path=opt.weight_path,
             resume=opt.resume,
             gpu_id=opt.gpu_id).train()
