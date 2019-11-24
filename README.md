@@ -12,12 +12,13 @@ Subsequently, i will continue to update the code to make it more concise , and a
 | name | Train Dataset | Val Dataset | mAP(others) | mAP(mine) | notes |
 | :----- | :----- | :------ | :----- | :-----| :-----|
 | YOLOV3-448-544 | 2007trainval + 2012trainval | 2007test | 0.769 | 0.768 | baseline(augument + step lr) |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.793  | 0.803 | \+multi-scale training |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.806  | 0.811 | \+focal loss(note the conf_loss in the start is lower) |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test |  -  | 0.813 | \+giou loss |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test |  -  | 0.821 | \+label smooth |  
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test |  -  | 0.826 | \+mixup |  
-  
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.793 | 0.803 | \+multi-scale training |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.806 | 0.811 | \+focal loss(note the conf_loss in the start is lower) |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.808 | 0.813 | \+giou loss |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.812 | 0.821 | \+label smooth |  
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.822 | 0.826 | \+mixup |  
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.833 | 0.830 | \+cosine lr |  
+
 `Note` : 
 
 * YOLOV3-448-544 means train image size is 448 and test image size is 544. `"*"` means the multi-scale.
@@ -47,7 +48,7 @@ pip3 install -r requirements.txt --user
 * [x] GIOU
 * [x] Label smooth
 * [x] Mixup
-* [ ] cosine lr
+* [x] cosine lr
 
 
 
