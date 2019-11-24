@@ -1,9 +1,9 @@
 import xml.etree.ElementTree as ET
-import sys
-sys.path.append("..")
-import params as  pms 
+import params as pms
 import os
 from tqdm import tqdm
+import sys
+sys.path.append("..")
 
 
 def parse_voc_annotation(data_path, file_type, anno_path, use_difficult_bbox=False):

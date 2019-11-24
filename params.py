@@ -29,7 +29,8 @@ TRAIN = {
          "NUMBER_WORKERS":4,
          "MOMENTUM":0.9,
          "WEIGHT_DECAY":0.0005,
-         "LR_INIT":0.0001
+         "LR_INIT":0.0001,
+         "WARMUP_EPOCHS":2  # or None
          }
 
 
@@ -42,4 +43,3 @@ TEST = {
         "NMS_THRESH":0.5,
         "MULTI_SCALE_TEST":False
         }
-

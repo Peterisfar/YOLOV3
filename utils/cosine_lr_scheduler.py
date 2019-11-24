@@ -2,7 +2,7 @@ import numpy as np
 
 
 class CosineDecayLR(object):
-    def __init__(self, optimizer, T_max, lr_max, lr_min=0., warmup=None):
+    def __init__(self, optimizer, T_max, lr_init, lr_min=0., warmup=None):
 
         """
         a cosine decay scheduler about steps, not epochs.
@@ -16,7 +16,7 @@ class CosineDecayLR(object):
         self.__optimizer = optimizer
         self.__T_max = T_max
         self.__lr_min = lr_min
-        self.__lr_max = lr_max
+        self.__lr_max = lr_init
         self.__warmup = warmup
 
 
@@ -29,22 +29,20 @@ class CosineDecayLR(object):
             param_group["lr"] = lr
 
 
-
-
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from model.model import Darknet
     import torch.optim as optim
 
     net = Darknet("cfg/yolov3-voc.cfg")
-    optimizer = optim.SGD(net.parameters(), 1e-3, 0.9, weight_decay=0.0005)
-    scheduler = CosineDecayLR(optimizer, 120*1000, 1e-3, 0., 5000)
+    optimizer = optim.SGD(net.parameters(), 1e-4, 0.9, weight_decay=0.0005)
+    scheduler = CosineDecayLR(optimizer, 50*2068, 1e-4, 0., 5000)
 
     # Plot lr schedule
     y = []
-    for t in range(120):
-        for i in range(1000):
-            scheduler.step(1000*t+i)
+    for t in range(50):
+        for i in range(2068):
+            scheduler.step(2068*t+i)
             y.append(optimizer.param_groups[0]['lr'])
 
     print(y)

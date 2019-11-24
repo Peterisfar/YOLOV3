@@ -7,8 +7,6 @@ import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.data import DataLoader
 import utils.datasets as data
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"]='1'
 import time
 import random
 import argparse
@@ -16,11 +14,15 @@ from eval.evaluator import *
 from utils.tools import *
 from tensorboardX import SummaryWriter
 from params import *
+from utils import cosine_lr_scheduler
+
+
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"]='1'
 
 
 class Trainer(object):
-    def __init__(self, cfg_path,
-                        weight_path,
+    def __init__(self, weight_path,
                         resume,
                         gpu_id
                  ):
@@ -32,10 +34,12 @@ class Trainer(object):
         self.weight_path = weight_path
         self.multi_scale_train = TRAIN["MULTI_SCALE_TRAIN"]
         self.train_dataset = data.VocDataset(anno_file_type="train", img_size=TRAIN["TRAIN_IMG_SIZE"])
-        self.train_dataloader = DataLoader(self.train_dataset, batch_size=TRAIN["BATCH_SIZE"],
-                                           num_workers=TRAIN["NUMBER_WORKERS"], shuffle=True)
-        self.yolov3 = Darknet(cfg_path=cfg_path, img_size=TRAIN["TRAIN_IMG_SIZE"]).to(self.device)
-        self.yolov3.apply(tools.weights_init_normal)
+        self.train_dataloader = DataLoader(self.train_dataset,
+                                           batch_size=TRAIN["BATCH_SIZE"],
+                                           num_workers=TRAIN["NUMBER_WORKERS"],
+                                           shuffle=True)
+        self.yolov3 = Yolov3().to(self.device)
+
 
         self.optimizer = optim.SGD(self.yolov3.parameters(), lr=TRAIN["LR_INIT"],
                                    momentum=TRAIN["MOMENTUM"], weight_decay=TRAIN["WEIGHT_DECAY"])
@@ -45,8 +49,12 @@ class Trainer(object):
                                     iou_threshold_loss=TRAIN["IOU_THRESHOLD_LOSS"])
 
         self.__load_model_weights(weight_path, resume)
-        self.scheduler = lr_scheduler.MultiStepLR(self.optimizer, milestones=[25, 40], gamma=0.1,
-                                                  last_epoch=self.start_epoch - 1)
+
+
+        self.scheduler = cosine_lr_scheduler.CosineDecayLR(self.optimizer,
+                                                          T_max=self.epochs*len(self.train_dataloader),
+                                                          lr_init=TRAIN["LR_INIT"],
+                                                          warmup=TRAIN["WARMUP_EPOCHS"]*len(self.train_dataloader))
 
 
     def __load_model_weights(self, weight_path, resume):
@@ -63,6 +71,7 @@ class Trainer(object):
         else:
             pre_trained_weight = os.path.join(weight_path, "darknet53_448.weights")
             self.yolov3.load_darknet_weights(pre_trained_weight)
+
 
     def __save_model_weights(self, epoch, mAP):
         if mAP > self.best_mAP:
@@ -82,16 +91,18 @@ class Trainer(object):
             torch.save(chkpt, os.path.join(self.weight_path, 'backup_epoch%g.pt'%epoch))
         del chkpt
 
+
     def train(self):
         print(self.yolov3)
         print("Train datasets number is : {}".format(len(self.train_dataset)))
 
         for epoch in range(self.start_epoch, self.epochs):
             self.yolov3.train()
-            self.scheduler.step()
 
             mloss = torch.zeros(4)
             for i, (imgs, label_sbbox, label_mbbox, label_lbbox, sbboxes, mbboxes, lbboxes)  in enumerate(self.train_dataloader):
+
+                self.scheduler.step(len(self.train_dataloader)*epoch + i)
 
                 imgs = imgs.to(self.device)
                 label_sbbox = label_sbbox.to(self.device)
@@ -144,13 +155,11 @@ class Trainer(object):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--cfg_path', type=str, default='cfg/yolov3-voc.cfg', help='cfg file path')
     parser.add_argument('--weight_path', type=str, default='weight', help='weight file path')
     parser.add_argument('--resume', action='store_true',default=False,  help='resume training flag')
     parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
     opt = parser.parse_args()
 
-    Trainer(cfg_path=opt.cfg_path,
-            weight_path=opt.weight_path,
+    Trainer(weight_path=opt.weight_path,
             resume=opt.resume,
             gpu_id=opt.gpu_id).train()
