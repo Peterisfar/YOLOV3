@@ -22,7 +22,7 @@ Subsequently, i will continue to update the code to make it more concise , and a
 `Note` : 
 
 * YOLOV3-448-544 means train image size is 448 and test image size is 544. `"*"` means the multi-scale.
-* In the test, the nms threshold is 0.5 and the conf_score is 0.01.
+* In the test, the nms threshold is 0.5(0.45 is better) and the conf_score is 0.01.
 * Now only support the single gpu to train and test.
 
 ---
@@ -72,7 +72,7 @@ python3 voc.py # get train_annotation.txt and test_annotation.txt in data/
 
 ### 3、Download weight file
 * Darknet pre-trained weight :  [darknet53-448.weights](https://pjreddie.com/media/files/darknet53_448.weights) 
-* This repository test weight : [best.pt](https://pan.baidu.com/s/1fCCJV4KPgFiHc-zWDZLwKA)
+* This repository test weight : [best.pt](https://pan.baidu.com/s/1dJSXGt6fj239pWzY_aNlFg)
 
 Make dir `weight/` in the YOLOV3 and put the weight file in.
 
