@@ -1,4 +1,4 @@
-import params as pms
+import config.yolov3_config_voc as cfg
 import os
 import shutil
 from eval import voc_eval
@@ -15,12 +15,12 @@ from utils.visualize import *
 
 class Evaluator(object):
     def __init__(self, model, visiual=True):
-        self.classes = pms.DATA["CLASSES"]
-        self.pred_result_path = os.path.join(pms.PROJECT_PATH, 'data', 'results')
-        self.val_data_path = os.path.join(pms.DATA_PATH, 'VOCtest-2007', 'VOCdevkit', 'VOC2007')
-        self.conf_thresh = pms.TEST["CONF_THRESH"]
-        self.nms_thresh = pms.TEST["NMS_THRESH"]
-        self.val_shape = pms.TEST["TEST_IMG_SIZE"]
+        self.classes = cfg.DATA["CLASSES"]
+        self.pred_result_path = os.path.join(cfg.PROJECT_PATH, 'data', 'results')
+        self.val_data_path = os.path.join(cfg.DATA_PATH, 'VOCtest-2007', 'VOCdevkit', 'VOC2007')
+        self.conf_thresh = cfg.TEST["CONF_THRESH"]
+        self.nms_thresh = cfg.TEST["NMS_THRESH"]
+        self.val_shape =  cfg.TEST["TEST_IMG_SIZE"]
 
         self.__visiual = visiual
         self.__visual_imgs = 0
@@ -49,7 +49,7 @@ class Evaluator(object):
                 scores = bboxes_prd[..., 4]
 
                 visualize_boxes(image=img, boxes=boxes, labels=class_inds, probs=scores, class_labels=self.classes)
-                path = os.path.join(pms.PROJECT_PATH, "data/results/{}.jpg".format(self.__visual_imgs))
+                path = os.path.join(cfg.PROJECT_PATH, "data/results/{}.jpg".format(self.__visual_imgs))
                 cv2.imwrite(path, img)
 
                 self.__visual_imgs += 1

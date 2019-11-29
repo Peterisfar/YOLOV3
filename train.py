@@ -1,7 +1,7 @@
 import logging
 import utils.gpu as gpu
-from model.model import Darknet
-from model.loss import YoloV3Loss
+from model.yolov3 import Yolov3
+from model.loss.yolo_loss import YoloV3Loss
 import torch
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
@@ -13,50 +13,48 @@ import argparse
 from eval.evaluator import *
 from utils.tools import *
 from tensorboardX import SummaryWriter
-from params import *
+import config.yolov3_config_voc as cfg
 from utils import cosine_lr_scheduler
 
 
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"]='1'
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]='2'
 
 
 class Trainer(object):
-    def __init__(self,  cfg_path,
-                        weight_path,
+    def __init__(self,  weight_path,
                         resume,
-                        gpu_id
-                 ):
+                        gpu_id):
         init_seeds(0)
         self.device = gpu.select_device(gpu_id)
         self.start_epoch = 0
         self.best_mAP = 0.
-        self.epochs = TRAIN["EPOCHS"]
+        self.epochs = cfg.TRAIN["EPOCHS"]
         self.weight_path = weight_path
-        self.multi_scale_train = TRAIN["MULTI_SCALE_TRAIN"]
-        self.train_dataset = data.VocDataset(anno_file_type="train", img_size=TRAIN["TRAIN_IMG_SIZE"])
+        self.multi_scale_train = cfg.TRAIN["MULTI_SCALE_TRAIN"]
+        self.train_dataset = data.VocDataset(anno_file_type="train", img_size=cfg.TRAIN["TRAIN_IMG_SIZE"])
         self.train_dataloader = DataLoader(self.train_dataset,
-                                           batch_size=TRAIN["BATCH_SIZE"],
-                                           num_workers=TRAIN["NUMBER_WORKERS"],
+                                           batch_size=cfg.TRAIN["BATCH_SIZE"],
+                                           num_workers=cfg.TRAIN["NUMBER_WORKERS"],
                                            shuffle=True)
-        self.yolov3 = Darknet(cfg_path=cfg_path, img_size=TRAIN["TRAIN_IMG_SIZE"]).to(self.device)
+        self.yolov3 = Yolov3(False).to(self.device)
+        self.yolov3.apply(tools.weights_init_normal)
 
 
-        self.optimizer = optim.SGD(self.yolov3.parameters(), lr=TRAIN["LR_INIT"],
-                                   momentum=TRAIN["MOMENTUM"], weight_decay=TRAIN["WEIGHT_DECAY"])
+        self.optimizer = optim.SGD(self.yolov3.parameters(), lr=cfg.TRAIN["LR_INIT"],
+                                   momentum=cfg.TRAIN["MOMENTUM"], weight_decay=cfg.TRAIN["WEIGHT_DECAY"])
         # self.optimizer = optim.Adam(self.yolov3.parameters(), lr = lr_init, weight_decay=0.9995)
 
-        self.criterion = YoloV3Loss(anchors=MODEL["ANCHORS"], strides=MODEL["STRIDES"],
-                                    iou_threshold_loss=TRAIN["IOU_THRESHOLD_LOSS"])
+        self.criterion = YoloV3Loss(anchors=cfg.MODEL["ANCHORS"], strides=cfg.MODEL["STRIDES"],
+                                    iou_threshold_loss=cfg.TRAIN["IOU_THRESHOLD_LOSS"])
 
         self.__load_model_weights(weight_path, resume)
 
-
         self.scheduler = cosine_lr_scheduler.CosineDecayLR(self.optimizer,
                                                           T_max=self.epochs*len(self.train_dataloader),
-                                                          lr_init=TRAIN["LR_INIT"],
-                                                          lr_min=TRAIN["LR_END"],
-                                                          warmup=TRAIN["WARMUP_EPOCHS"]*len(self.train_dataloader))
+                                                          lr_init=cfg.TRAIN["LR_INIT"],
+                                                          lr_min=cfg.TRAIN["LR_END"],
+                                                          warmup=cfg.TRAIN["WARMUP_EPOCHS"]*len(self.train_dataloader))
 
 
     def __load_model_weights(self, weight_path, resume):
@@ -143,12 +141,11 @@ class Trainer(object):
             if epoch >= 20:
                 print('*'*20+"Validate"+'*'*20)
                 with torch.no_grad():
-                    result = Evaluator(self.yolov3).APs_voc()
-
-                    for i in result:
-                        print(i, result[i])
-                        mAP += result[i]
-                    mAP = mAP/self.train_dataset.num_classes
+                    APs = Evaluator(self.yolov3).APs_voc()
+                    for i in APs:
+                        print("{} --> mAP : {}".format(i, APs[i]))
+                        mAP += APs[i]
+                    mAP = mAP / self.train_dataset.num_classes
                     print('mAP:%g'%(mAP))
 
             self.__save_model_weights(epoch, mAP)
@@ -163,7 +160,6 @@ if __name__ == "__main__":
     parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
     opt = parser.parse_args()
 
-    Trainer(cfg_path=opt.cfg_path,
-            weight_path=opt.weight_path,
+    Trainer(weight_path=opt.weight_path,
             resume=opt.resume,
             gpu_id=opt.gpu_id).train()

@@ -5,7 +5,8 @@ import torch
 import numpy as np
 import cv2
 import random
-import params as pms
+import config.yolov3_config_voc as cfg
+import os
 
 
 def weights_init_normal(m):
@@ -272,6 +273,8 @@ def init_seeds(seed=0):
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
+    os.environ['PYTHONHASHSEED'] = str(seed)
+
 
 def plot_box(bboxes, img, id = None, color=None, line_thickness=None):
     """
@@ -290,7 +293,7 @@ def plot_box(bboxes, img, id = None, color=None, line_thickness=None):
     for i, x in enumerate(bboxes):
         c1, c2 = (int(x[0]), int(x[1])), (int(x[2]), int(x[3]))
         cv2.rectangle(img, c1, c2, color, thickness=tl)
-        label = pms.DATA["CLASSES"][int(x[4])]
+        label = cfg.DATA["CLASSES"][int(x[4])]
         if label:
             tf = max(tl - 1, 1)  # font thickness
             t_size = cv2.getTextSize(label, 0, fontScale=tl / 3, thickness=tf)[0]

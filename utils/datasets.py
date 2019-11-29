@@ -5,7 +5,7 @@ sys.path.append("..")
 sys.path.append("../utils")
 import torch
 from torch.utils.data import Dataset, DataLoader
-import params as pms
+import config.yolov3_config_voc as cfg
 import cv2
 import numpy as np
 import random
@@ -19,7 +19,7 @@ import utils.tools as tools
 class VocDataset(Dataset):
     def __init__(self, anno_file_type, img_size=416):
         self.img_size = img_size  # For Multi-training
-        self.classes = pms.DATA["CLASSES"]
+        self.classes = cfg.DATA["CLASSES"]
         self.num_classes = len(self.classes)
         self.class_to_id = dict(zip(self.classes, range(self.num_classes)))
         self.__annotations = self.__load_annotations(anno_file_type)
@@ -57,7 +57,7 @@ class VocDataset(Dataset):
     def __load_annotations(self, anno_type):
 
         assert anno_type in ['train', 'test'], "You must choice one of the 'train' or 'test' for anno_type parameter"
-        anno_path = os.path.join(pms.PROJECT_PATH, 'data', anno_type+"_annotation.txt")
+        anno_path = os.path.join(cfg.PROJECT_PATH, 'data', anno_type+"_annotation.txt")
         with open(anno_path, 'r') as f:
             annotations = list(filter(lambda x:len(x)>0, f.readlines()))
         assert len(annotations)>0, "No images found in {}".format(anno_path)
@@ -101,10 +101,10 @@ class VocDataset(Dataset):
 
         """
 
-        anchors = np.array(pms.MODEL["ANCHORS"])
-        strides = np.array(pms.MODEL["STRIDES"])
+        anchors = np.array(cfg.MODEL["ANCHORS"])
+        strides = np.array(cfg.MODEL["STRIDES"])
         train_output_size = self.img_size / strides
-        anchors_per_scale = pms.MODEL["ANCHORS_PER_SCLAE"]
+        anchors_per_scale = cfg.MODEL["ANCHORS_PER_SCLAE"]
 
         label = [np.zeros((int(train_output_size[i]), int(train_output_size[i]), anchors_per_scale, 6+self.num_classes))
                                                                       for i in range(3)]

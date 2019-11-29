@@ -1,20 +1,20 @@
 from torch.utils.data import DataLoader
 import utils.gpu as gpu
-from model.model import Darknet
+from model.yolov3 import Yolov3
 from tqdm import tqdm
 from utils.tools import *
 from eval.evaluator import Evaluator
 import argparse
 import os
-import params as pms
+import config.yolov3_config_voc as cfg
 from utils.visualize import *
+
 import os
 os.environ["CUDA_VISIBLE_DEVICES"]='0'
 
 
 class Tester(object):
     def __init__(self,
-                 cfg_path=None,
                  weight_path=None,
                  gpu_id=0,
                  img_size=544,
@@ -22,15 +22,15 @@ class Tester(object):
                  eval=False
                  ):
         self.img_size = img_size
-        self.__num_class = pms.DATA["NUM"]
-        self.__conf_threshold = pms.TEST["CONF_THRESH"]
-        self.__nms_threshold = pms.TEST["NMS_THRESH"]
+        self.__num_class = cfg.DATA["NUM"]
+        self.__conf_threshold = cfg.TEST["CONF_THRESH"]
+        self.__nms_threshold = cfg.TEST["NMS_THRESH"]
         self.__device = gpu.select_device(gpu_id)
         self.__visiual = visiual
         self.__eval = eval
-        self.__classes = pms.DATA["CLASSES"]
+        self.__classes = cfg.DATA["CLASSES"]
 
-        self.__model = Darknet(cfg_path=cfg_path, img_size=img_size).to(self.__device)
+        self.__model = Yolov3().to(self.__device)
 
         self.__load_model_weights(weight_path)
 
@@ -64,7 +64,7 @@ class Tester(object):
                     scores = bboxes_prd[..., 4]
 
                     visualize_boxes(image=img, boxes=boxes, labels=class_inds, probs=scores, class_labels=self.__classes)
-                    path = os.path.join(pms.PROJECT_PATH, "data/{}".format(v))
+                    path = os.path.join(cfg.PROJECT_PATH, "data/{}".format(v))
 
                     cv2.imwrite(path, img)
                     print("saved images : {}".format(path))
@@ -75,10 +75,11 @@ class Tester(object):
             print('*' * 20 + "Validate" + '*' * 20)
 
             with torch.no_grad():
-                result = self.__evalter.APs_voc()
-                for i in result:
-                    print(i, result[i])
-                    mAP += result[i]
+                APs = Evaluator(self.__model).APs_voc()
+
+                for i in APs:
+                    print("{} --> mAP : {}".format(i, APs[i]))
+                    mAP += APs[i]
                 mAP = mAP / self.__num_class
                 print('mAP:%g' % (mAP))
 
@@ -93,8 +94,7 @@ if __name__ == "__main__":
     parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
     opt = parser.parse_args()
 
-    Tester(cfg_path=opt.cfg_path,
-            weight_path=opt.weight_path,
+    Tester( weight_path=opt.weight_path,
             gpu_id=opt.gpu_id,
             eval=opt.eval,
             visiual=opt.visiual).test()
