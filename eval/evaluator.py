@@ -71,10 +71,10 @@ class Evaluator(object):
 
     def get_bbox(self, img, multi_test=False, flip_test=False):
         if multi_test:
-            test_input_sizes = random.choice(range(10, 20, 3)) * 32
+            test_input_sizes = range(320, 640, 96)
             bboxes_list = []
             for test_input_size in test_input_sizes:
-                valid_scale =(90, np.inf)
+                valid_scale =(0, np.inf)
                 bboxes_list.append(self.__predict(img, test_input_size, valid_scale))
                 if flip_test:
                     bboxes_flip = self.__predict(img[:, ::-1], test_input_size, valid_scale)

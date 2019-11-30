@@ -9,8 +9,8 @@ import os
 import config.yolov3_config_voc as cfg
 from utils.visualize import *
 
-#import os
-#os.environ["CUDA_VISIBLE_DEVICES"]='0'
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]='0'
 
 
 class Tester(object):
@@ -26,6 +26,9 @@ class Tester(object):
         self.__conf_threshold = cfg.TEST["CONF_THRESH"]
         self.__nms_threshold = cfg.TEST["NMS_THRESH"]
         self.__device = gpu.select_device(gpu_id)
+        self.__multi_scale_test = cfg.TEST["MULTI_SCALE_TEST"]
+        self.__flip_test = cfg.TEST["FLIP_TEST"]
+
         self.__visiual = visiual
         self.__eval = eval
         self.__classes = cfg.DATA["CLASSES"]
@@ -75,7 +78,7 @@ class Tester(object):
             print('*' * 20 + "Validate" + '*' * 20)
 
             with torch.no_grad():
-                APs = Evaluator(self.__model).APs_voc()
+                APs = Evaluator(self.__model).APs_voc(self.__multi_scale_test, self.__flip_test)
 
                 for i in APs:
                     print("{} --> mAP : {}".format(i, APs[i]))
