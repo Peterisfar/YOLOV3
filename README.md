@@ -17,12 +17,12 @@ Subsequently, i will continue to update the code to make it more concise , and a
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.808 | 0.813 | \+giou loss |
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.812 | 0.821 | \+label smooth |  
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.822 | 0.826 | \+mixup |  
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.833 | 0.830 | \+cosine lr |  
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.833 | 0.832 | \+cosine lr |  
 
 `Note` : 
 
 * YOLOV3-448-544 means train image size is 448 and test image size is 544. `"*"` means the multi-scale.
-* In the test, the nms threshold is 0.5(0.45 is better) and the conf_score is 0.01.
+* In the test, the nms threshold is 0.5 and the conf_score is 0.01.
 * Now only support the single gpu to train and test.
 
 ---
@@ -72,20 +72,19 @@ python3 voc.py # get train_annotation.txt and test_annotation.txt in data/
 
 ### 3、Download weight file
 * Darknet pre-trained weight :  [darknet53-448.weights](https://pjreddie.com/media/files/darknet53_448.weights) 
-* This repository test weight : [best.pt](https://pan.baidu.com/s/1dJSXGt6fj239pWzY_aNlFg)
+* This repository test weight : [best.pt](https://pan.baidu.com/s/1yR26emgdwhLcTaTIV0ecIA)
 
 Make dir `weight/` in the YOLOV3 and put the weight file in.
 
 ---
 ## Train
 
-Run the following command to start training and see the details in the `params.py`
+Run the following command to start training and see the details in the `config/yolov3_config_voc.py`
 
 ```Bash
-CFG_PATH=cfg/yolov3-voc.cfg
-WEIGHT_PATH=weight
+WEIGHT_PATH=weight/darknet53_448.weights
 
-CUDA_VISIBLE_DEVICES=0 nohup python3 -u train.py --cfg_path $CFG_PATH --weight_path $WEIGHT_PATH --gpu_id 0 > nohup.log 2>&1 &
+CUDA_VISIBLE_DEVICES=0 nohup python3 -u train.py --weight_path $WEIGHT_PATH --gpu_id 0 > nohup.log 2>&1 &
 
 ```
 
@@ -98,11 +97,10 @@ CUDA_VISIBLE_DEVICES=0 nohup python3 -u train.py --cfg_path $CFG_PATH --weight_p
 ## Test
 You should define your weight file path `WEIGHT_FILE` and images file path `IMAGE_FILE`
 ```Bash
-CFG_PATH=cfg/yolov3-voc.cfg
 WEIGHT_PATH=weight/best.pt
 DATA_TEST=./data/test # your own images
 
-CUDA_VISIBLE_DEVICES=0 python3 test.py --cfg_path $CFG_PATH --weight_path $WEIGHT_PATH --gpu_id 0 --visiual $DATA_TEST --eval
+CUDA_VISIBLE_DEVICES=0 python3 test.py --weight_path $WEIGHT_PATH --gpu_id 0 --visiual $DATA_TEST --eval
 
 ```
 The images can be seen in the `data/`
