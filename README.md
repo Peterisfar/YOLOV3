@@ -17,7 +17,8 @@ Subsequently, i will continue to update the code to make it more concise , and a
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.808 | 0.813 | \+giou loss |
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.812 | 0.821 | \+label smooth |  
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.822 | 0.826 | \+mixup |  
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.833 | 0.832 | \+cosine lr |  
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.833 | 0.832 | \+cosine lr |
+| YOLOV3-\*-* | 2007trainval + 2012trainval | 2007test | 0.858 | 0.858 | \+multi-scale test and flip |  
 
 `Note` : 
 
@@ -49,6 +50,7 @@ pip3 install -r requirements.txt --user
 * [x] Label smooth
 * [x] Mixup
 * [x] cosine lr
+* [x] Multi-scale Test and Flip
 
 
 
