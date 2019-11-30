@@ -50,10 +50,10 @@ class YoloV3Loss(nn.Module):
         loss_l, loss_l_giou, loss_l_conf, loss_l_cls = self.__cal_loss_per_layer(p[2], p_d[2], label_lbbox,
                                                                lbboxes, strides[2])
 
-        loss = (loss_l + loss_m + loss_s) / 3
-        loss_giou = (loss_s_giou + loss_m_giou + loss_l_giou) /3
-        loss_conf = (loss_s_conf + loss_m_conf + loss_l_conf) /3
-        loss_cls = (loss_s_cls + loss_m_cls + loss_l_cls) / 3
+        loss = loss_l + loss_m + loss_s
+        loss_giou = loss_s_giou + loss_m_giou + loss_l_giou
+        loss_conf = loss_s_conf + loss_m_conf + loss_l_conf
+        loss_cls = loss_s_cls + loss_m_cls + loss_l_cls
 
         return loss, loss_giou, loss_conf, loss_cls
 

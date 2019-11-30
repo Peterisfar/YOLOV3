@@ -1,9 +1,10 @@
+import sys
+sys.path.append("..")
 import xml.etree.ElementTree as ET
 import config.yolov3_config_voc as cfg
 import os
 from tqdm import tqdm
-import sys
-sys.path.append("..")
+
 
 
 def parse_voc_annotation(data_path, file_type, anno_path, use_difficult_bbox=False):

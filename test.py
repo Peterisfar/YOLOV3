@@ -9,8 +9,8 @@ import os
 import config.yolov3_config_voc as cfg
 from utils.visualize import *
 
-import os
-os.environ["CUDA_VISIBLE_DEVICES"]='0'
+#import os
+#os.environ["CUDA_VISIBLE_DEVICES"]='0'
 
 
 class Tester(object):
@@ -87,7 +87,6 @@ class Tester(object):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--cfg_path', type=str, default='cfg/yolov3-voc.cfg', help='cfg file path')
     parser.add_argument('--weight_path', type=str, default='weight/best.pt', help='weight file path')
     parser.add_argument('--visiual', type=str, default='./data/test', help='data augment flag')
     parser.add_argument('--eval', action='store_true', default=True, help='data augment flag')

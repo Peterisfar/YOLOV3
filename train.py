@@ -17,14 +17,12 @@ import config.yolov3_config_voc as cfg
 from utils import cosine_lr_scheduler
 
 
-import os
-os.environ["CUDA_VISIBLE_DEVICES"]='2'
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"]='2'
 
 
 class Trainer(object):
-    def __init__(self,  weight_path,
-                        resume,
-                        gpu_id):
+    def __init__(self,  weight_path, resume, gpu_id):
         init_seeds(0)
         self.device = gpu.select_device(gpu_id)
         self.start_epoch = 0
@@ -37,13 +35,12 @@ class Trainer(object):
                                            batch_size=cfg.TRAIN["BATCH_SIZE"],
                                            num_workers=cfg.TRAIN["NUMBER_WORKERS"],
                                            shuffle=True)
-        self.yolov3 = Yolov3(False).to(self.device)
-        self.yolov3.apply(tools.weights_init_normal)
-
+        self.yolov3 = Yolov3().to(self.device)
+        # self.yolov3.apply(tools.weights_init_normal)
 
         self.optimizer = optim.SGD(self.yolov3.parameters(), lr=cfg.TRAIN["LR_INIT"],
                                    momentum=cfg.TRAIN["MOMENTUM"], weight_decay=cfg.TRAIN["WEIGHT_DECAY"])
-        # self.optimizer = optim.Adam(self.yolov3.parameters(), lr = lr_init, weight_decay=0.9995)
+        #self.optimizer = optim.Adam(self.yolov3.parameters(), lr = lr_init, weight_decay=0.9995)
 
         self.criterion = YoloV3Loss(anchors=cfg.MODEL["ANCHORS"], strides=cfg.MODEL["STRIDES"],
                                     iou_threshold_loss=cfg.TRAIN["IOU_THRESHOLD_LOSS"])
@@ -59,7 +56,7 @@ class Trainer(object):
 
     def __load_model_weights(self, weight_path, resume):
         if resume:
-            last_weight = os.path.join(weight_path, "last.pt")
+            last_weight = os.path.join(os.path.split(weight_path)[0], "last.pt")
             chkpt = torch.load(last_weight, map_location=self.device)
             self.yolov3.load_state_dict(chkpt['model'])
 
@@ -69,15 +66,14 @@ class Trainer(object):
                 self.best_mAP = chkpt['best_mAP']
             del chkpt
         else:
-            pre_trained_weight = os.path.join(weight_path, "darknet53_448.weights")
-            self.yolov3.load_darknet_weights(pre_trained_weight)
+            self.yolov3.load_darknet_weights(weight_path)
 
 
     def __save_model_weights(self, epoch, mAP):
         if mAP > self.best_mAP:
             self.best_mAP = mAP
-        best_weight = os.path.join(self.weight_path, "best.pt")
-        last_weight = os.path.join(self.weight_path, "last.pt")
+        best_weight = os.path.join(os.path.split(self.weight_path)[0], "best.pt")
+        last_weight = os.path.join(os.path.split(self.weight_path)[0], "last.pt")
         chkpt = {'epoch': epoch,
                  'best_mAP': self.best_mAP,
                  'model': self.yolov3.state_dict(),
@@ -88,7 +84,7 @@ class Trainer(object):
             torch.save(chkpt['model'], best_weight)
 
         if epoch > 0 and epoch % 10 == 0:
-            torch.save(chkpt, os.path.join(self.weight_path, 'backup_epoch%g.pt'%epoch))
+            torch.save(chkpt, os.path.join(os.path.split(self.weight_path)[0], 'backup_epoch%g.pt'%epoch))
         del chkpt
 
 
@@ -154,8 +150,7 @@ class Trainer(object):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--cfg_path', type=str, default='cfg/yolov3-voc.cfg', help='cfg file path')
-    parser.add_argument('--weight_path', type=str, default='weight', help='weight file path')
+    parser.add_argument('--weight_path', type=str, default='weight/darknet53_448.weights', help='weight file path')
     parser.add_argument('--resume', action='store_true',default=False,  help='resume training flag')
     parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
     opt = parser.parse_args()
