@@ -1,27 +1,23 @@
 # YOLOV3
 ---
 # Introduction
-This is my own YOLOV3 written in pytorch, and is also the first time i have reproduced a object detection model.The dataset used is PASCAL VOC(not use difficulty). The eval tool is the voc2010. Now the mAP gains the goal score.
+This is the branch of YOLOV3 about using model compression tricks.The dataset used is PASCAL VOC(not use difficulty). The eval tool is the voc2010. If you want to see the original code, you can switch to [master branch](https://github.com/Peterisfar/YOLOV3)
 
-Subsequently, i will continue to update the code to make it more concise , and add the new and efficient tricks.
+Subsequently, i will continue to update the code, involving new papers and tips.
 
 ---
 ## Results
 
 
-| name | Train Dataset | Val Dataset | mAP(others) | mAP(mine) | notes |
-| :----- | :----- | :------ | :----- | :-----| :-----|
-| YOLOV3-448-544 | 2007trainval + 2012trainval | 2007test | 0.769 | 0.768 | baseline(augument + step lr) |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.793 | 0.803 | \+multi-scale training |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.806 | 0.811 | \+focal loss(note the conf_loss in the start is lower) |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.808 | 0.813 | \+giou loss |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.812 | 0.821 | \+label smooth |  
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.822 | 0.826 | \+mixup |  
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.833 | 0.832 | \+cosine lr |  
+| name | Train Dataset | Val Dataset | Params | Flops | Inference(CPU\|GPU) | mAP | notes |
+| :-----| :-----| :-----| :-----| :-----| :-----| :-----| :-----|
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 236M | - | - | 0.832 | darknet53 |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 27M | - | - | 0.783 | MobileNet-v2 & FPN(conv->dw+pw) |
+
 
 `Note` : 
 
-* YOLOV3-448-544 means train image size is 448 and test image size is 544. `"*"` means the multi-scale.
+* YOLOV3-*-544 means test image size is 544. `"*"` means the multi-scale.
 * In the test, the nms threshold is 0.5 and the conf_score is 0.01.
 * Now only support the single gpu to train and test.
 
@@ -32,6 +28,7 @@ Subsequently, i will continue to update the code to make it more concise , and a
 * CUDA10.0
 * CUDNN7.0
 * ubuntu 16.04
+* Intel(R) Xeon(R) CPU E5-2678 v3 @ 2.50GHz
 
 ```bash
 # install packages
@@ -44,12 +41,12 @@ pip3 install -r requirements.txt --user
 * [x] Data Augment (RandomHorizontalFlip, RandomCrop, RandomAffine, Resize)
 * [x] Step lr Schedule 
 * [x] Multi-scale Training (320 to 640)
-* [x] focal loss
+* [x] Focal loss
 * [x] GIOU
 * [x] Label smooth
 * [x] Mixup
-* [x] cosine lr
-
+* [x] Cosine lr
+* [x] MobileNet-V2
 
 
 ---
@@ -65,14 +62,14 @@ update the `"PROJECT_PATH"` in the params.py.
 * Convert data format : Convert the pascal voc *.xml format to custom format (Image_path0 &nbsp; xmin0,ymin0,xmax0,ymax0,class0 &nbsp; xmin1,ymin1...)
 
 ```bash
-cd YOLOV3 && mkdir data
+cd YOLOV3 && git checkout model_compression && mkdir data
 cd utils
 python3 voc.py # get train_annotation.txt and test_annotation.txt in data/
 ```
 
 ### 3、Download weight file
-* Darknet pre-trained weight :  [darknet53-448.weights](https://pjreddie.com/media/files/darknet53_448.weights) 
-* This repository test weight : [best.pt](https://pan.baidu.com/s/1yR26emgdwhLcTaTIV0ecIA)
+* MobileNet-V2 pre-trained weight :  [mobilenetv2_1.0-0c6065bc.pth](https://pan.baidu.com/s/1BwObvtGalF2R2iE3u-XqhQ) 
+* This repository test weight : [best_mobilenet_v2.pt](https://pan.baidu.com/s/1UHVSgqSg2OZhlcwAe-UJ8g)
 
 Make dir `weight/` in the YOLOV3 and put the weight file in.
 
@@ -82,7 +79,7 @@ Make dir `weight/` in the YOLOV3 and put the weight file in.
 Run the following command to start training and see the details in the `config/yolov3_config_voc.py`
 
 ```Bash
-WEIGHT_PATH=weight/darknet53_448.weights
+WEIGHT_PATH=weight/mobilenetv2_1.0-0c6065bc.pth
 
 CUDA_VISIBLE_DEVICES=0 nohup python3 -u train.py --weight_path $WEIGHT_PATH --gpu_id 0 > nohup.log 2>&1 &
 
@@ -97,7 +94,7 @@ CUDA_VISIBLE_DEVICES=0 nohup python3 -u train.py --weight_path $WEIGHT_PATH --gp
 ## Test
 You should define your weight file path `WEIGHT_FILE` and images file path `IMAGE_FILE`
 ```Bash
-WEIGHT_PATH=weight/best.pt
+WEIGHT_PATH=weight/best_mobilenet_v2.pt
 DATA_TEST=./data/test # your own images
 
 CUDA_VISIBLE_DEVICES=0 python3 test.py --weight_path $WEIGHT_PATH --gpu_id 0 --visiual $DATA_TEST --eval
@@ -108,15 +105,12 @@ The images can be seen in the `data/`
 ---
 ## TODO
 
-* [ ] Mish
+* [ ] EfficientNet
 * [ ] OctvConv
-* [ ] Mobilenet v1-v3
 
 ---
 ## Reference
 
 * tensorflow : https://github.com/Stinky-Tofu/Stronger-yolo
-* pytorch : https://github.com/ultralytics/yolov3
-* keras : https://github.com/qqwweee/keras-yolo3
-
+* MobileNet-v2 : https://github.com/d-li14/mobilenetv2.pytorch/blob/master/models/imagenet/mobilenetv2.py
 
