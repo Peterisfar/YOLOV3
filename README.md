@@ -5,6 +5,8 @@ This is my own YOLOV3 written in pytorch, and is also the first time i have repr
 
 Subsequently, i will continue to update the code to make it more concise , and add the new and efficient tricks.
 
+`Note` : Now this repository supports the model compression in the new branch [model_compression](https://github.com/Peterisfar/YOLOV3/tree/model_compression)
+
 ---
 ## Results
 
