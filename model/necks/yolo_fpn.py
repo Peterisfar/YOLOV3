@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..layers.conv_module import Convolutional
+from ..layers.conv_module import Separable_Conv, Convolutional
 
 
 class Upsample(nn.Module):
@@ -40,17 +40,14 @@ class FPN_YOLOV3(nn.Module):
         self.__conv_set_0 = nn.Sequential(
             Convolutional(filters_in=fi_0, filters_out=512, kernel_size=1, stride=1, pad=0, norm="bn",
                           activate="leaky"),
-            Convolutional(filters_in=512, filters_out=1024, kernel_size=3, stride=1, pad=1, norm="bn",
-                          activate="leaky"),
+            Separable_Conv(filters_in=512, filters_out=1024, stride=1),
             Convolutional(filters_in=1024, filters_out=512, kernel_size=1, stride=1, pad=0, norm="bn",
                           activate="leaky"),
-            Convolutional(filters_in=512, filters_out=1024, kernel_size=3, stride=1, pad=1, norm="bn",
-                          activate="leaky"),
-            Convolutional(filters_in=1024, filters_out=512, kernel_size=1, stride=1,pad=0, norm="bn",
+            Separable_Conv(filters_in=512, filters_out=1024, stride=1),
+            Convolutional(filters_in=1024, filters_out=512, kernel_size=1, stride=1, pad=0, norm="bn",
                           activate="leaky"),
         )
-        self.__conv0_0 = Convolutional(filters_in=512, filters_out=1024, kernel_size=3, stride=1,
-                                       pad=1, norm="bn", activate="leaky")
+        self.__conv0_0 = Separable_Conv(filters_in=512, filters_out=1024, stride=1)
         self.__conv0_1 = Convolutional(filters_in=1024, filters_out=fo_0, kernel_size=1,
                                        stride=1, pad=0)
 
@@ -62,19 +59,16 @@ class FPN_YOLOV3(nn.Module):
 
         # medium
         self.__conv_set_1 = nn.Sequential(
-            Convolutional(filters_in=fi_1+256, filters_out=256, kernel_size=1, stride=1, pad=0, norm="bn",
+            Convolutional(filters_in=fi_1 + 256, filters_out=256, kernel_size=1, stride=1, pad=0, norm="bn",
                           activate="leaky"),
-            Convolutional(filters_in=256, filters_out=512, kernel_size=3, stride=1, pad=1, norm="bn",
-                          activate="leaky"),
+            Separable_Conv(filters_in=256, filters_out=512, stride=1),
             Convolutional(filters_in=512, filters_out=256, kernel_size=1, stride=1, pad=0, norm="bn",
                           activate="leaky"),
-            Convolutional(filters_in=256, filters_out=512, kernel_size=3, stride=1, pad=1, norm="bn",
-                          activate="leaky"),
+            Separable_Conv(filters_in=256, filters_out=512, stride=1),
             Convolutional(filters_in=512, filters_out=256, kernel_size=1, stride=1, pad=0, norm="bn",
                           activate="leaky"),
         )
-        self.__conv1_0 = Convolutional(filters_in=256, filters_out=512, kernel_size=3, stride=1,
-                                       pad=1, norm="bn", activate="leaky")
+        self.__conv1_0 = Separable_Conv(filters_in=256, filters_out=512, stride=1)
         self.__conv1_1 = Convolutional(filters_in=512, filters_out=fo_1, kernel_size=1,
                                        stride=1, pad=0)
 
@@ -86,21 +80,42 @@ class FPN_YOLOV3(nn.Module):
 
         # small
         self.__conv_set_2 = nn.Sequential(
-            Convolutional(filters_in=fi_2+128, filters_out=128, kernel_size=1, stride=1, pad=0, norm="bn",
+            Convolutional(filters_in=fi_2 + 128, filters_out=128, kernel_size=1, stride=1, pad=0, norm="bn",
                           activate="leaky"),
-            Convolutional(filters_in=128, filters_out=256, kernel_size=3, stride=1, pad=1, norm="bn",
-                          activate="leaky"),
+            Separable_Conv(filters_in=128, filters_out=256, stride=1),
             Convolutional(filters_in=256, filters_out=128, kernel_size=1, stride=1, pad=0, norm="bn",
                           activate="leaky"),
-            Convolutional(filters_in=128, filters_out=256, kernel_size=3, stride=1, pad=1, norm="bn",
-                          activate="leaky"),
+            Separable_Conv(filters_in=128, filters_out=256, stride=1),
             Convolutional(filters_in=256, filters_out=128, kernel_size=1, stride=1, pad=0, norm="bn",
                           activate="leaky"),
         )
-        self.__conv2_0 = Convolutional(filters_in=128, filters_out=256, kernel_size=3, stride=1,
-                                       pad=1, norm="bn", activate="leaky")
+        self.__conv2_0 = Separable_Conv(filters_in=128, filters_out=256, stride=1)
         self.__conv2_1 = Convolutional(filters_in=256, filters_out=fo_2, kernel_size=1,
                                        stride=1, pad=0)
+
+        self.__initialize_weights()
+
+
+    def __initialize_weights(self):
+        print("**" * 10, "Initing FPN_YOLOV3 weights", "**" * 10)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                m.weight.data.normal_(0, 0.01)
+                if m.bias is not None:
+                    m.bias.data.zero_()
+
+                print("initing {}".format(m))
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+
+                print("initing {}".format(m))
+            elif isinstance(m, nn.Linear):
+                m.weight.data.normal_(0, 0.01)
+                m.bias.data.zero_()
+                print("initing {}".format(m))
+
 
     def forward(self, x0, x1, x2):  # large, medium, small
         # large

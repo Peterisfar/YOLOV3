@@ -17,8 +17,8 @@ import config.yolov3_config_voc as cfg
 from utils import cosine_lr_scheduler
 
 
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"]='2'
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]='2'
 
 
 class Trainer(object):
@@ -35,8 +35,8 @@ class Trainer(object):
                                            batch_size=cfg.TRAIN["BATCH_SIZE"],
                                            num_workers=cfg.TRAIN["NUMBER_WORKERS"],
                                            shuffle=True)
-        self.yolov3 = Yolov3().to(self.device)
-        # self.yolov3.apply(tools.weights_init_normal)
+        self.yolov3 = Yolov3(weight_path).to(self.device)
+
 
         self.optimizer = optim.SGD(self.yolov3.parameters(), lr=cfg.TRAIN["LR_INIT"],
                                    momentum=cfg.TRAIN["MOMENTUM"], weight_decay=cfg.TRAIN["WEIGHT_DECAY"])
@@ -45,7 +45,8 @@ class Trainer(object):
         self.criterion = YoloV3Loss(anchors=cfg.MODEL["ANCHORS"], strides=cfg.MODEL["STRIDES"],
                                     iou_threshold_loss=cfg.TRAIN["IOU_THRESHOLD_LOSS"])
 
-        self.__load_model_weights(weight_path, resume)
+        if resume:
+            self.__load_model_weights(weight_path)
 
         self.scheduler = cosine_lr_scheduler.CosineDecayLR(self.optimizer,
                                                           T_max=self.epochs*len(self.train_dataloader),
@@ -54,19 +55,16 @@ class Trainer(object):
                                                           warmup=cfg.TRAIN["WARMUP_EPOCHS"]*len(self.train_dataloader))
 
 
-    def __load_model_weights(self, weight_path, resume):
-        if resume:
-            last_weight = os.path.join(os.path.split(weight_path)[0], "last.pt")
-            chkpt = torch.load(last_weight, map_location=self.device)
-            self.yolov3.load_state_dict(chkpt['model'])
+    def __load_model_weights(self, weight_path):
+        last_weight = os.path.join(os.path.split(weight_path)[0], "last.pt")
+        chkpt = torch.load(last_weight, map_location=self.device)
+        self.yolov3.load_state_dict(chkpt['model'])
 
-            self.start_epoch = chkpt['epoch'] + 1
-            if chkpt['optimizer'] is not None:
-                self.optimizer.load_state_dict(chkpt['optimizer'])
-                self.best_mAP = chkpt['best_mAP']
-            del chkpt
-        else:
-            self.yolov3.load_darknet_weights(weight_path)
+        self.start_epoch = chkpt['epoch'] + 1
+        if chkpt['optimizer'] is not None:
+            self.optimizer.load_state_dict(chkpt['optimizer'])
+            self.best_mAP = chkpt['best_mAP']
+        del chkpt
 
 
     def __save_model_weights(self, epoch, mAP):
@@ -150,7 +148,7 @@ class Trainer(object):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weight_path', type=str, default='weight/darknet53_448.weights', help='weight file path')
+    parser.add_argument('--weight_path', type=str, default='weight/mobilenetv2_1.0-0c6065bc.pth', help='weight file path')
     parser.add_argument('--resume', action='store_true',default=False,  help='resume training flag')
     parser.add_argument('--gpu_id', type=int, default=0, help='gpu id')
     opt = parser.parse_args()
