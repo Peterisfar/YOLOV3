@@ -25,7 +25,7 @@ TRAIN = {
          "BATCH_SIZE":8,
          "MULTI_SCALE_TRAIN":True,
          "IOU_THRESHOLD_LOSS":0.5,
-         "EPOCHS":100,
+         "EPOCHS":120,
          "NUMBER_WORKERS":4,
          "MOMENTUM":0.9,
          "WEIGHT_DECAY":0.0005,
@@ -41,7 +41,7 @@ TEST = {
         "BATCH_SIZE":1,
         "NUMBER_WORKERS":0,
         "CONF_THRESH":0.01,
-        "NMS_THRESH":0.5,
+        "NMS_THRESH":0.45,
         "MULTI_SCALE_TEST":False,
         "FLIP_TEST":False
         }

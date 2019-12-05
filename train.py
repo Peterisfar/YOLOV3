@@ -17,8 +17,8 @@ import config.yolov3_config_voc as cfg
 from utils import cosine_lr_scheduler
 
 
-import os
-os.environ["CUDA_VISIBLE_DEVICES"]='2'
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"]='2'
 
 
 class Trainer(object):
@@ -38,9 +38,9 @@ class Trainer(object):
         self.yolov3 = Yolov3(weight_path).to(self.device)
 
 
-        self.optimizer = optim.SGD(self.yolov3.parameters(), lr=cfg.TRAIN["LR_INIT"],
-                                   momentum=cfg.TRAIN["MOMENTUM"], weight_decay=cfg.TRAIN["WEIGHT_DECAY"])
-        #self.optimizer = optim.Adam(self.yolov3.parameters(), lr = lr_init, weight_decay=0.9995)
+        # self.optimizer = optim.SGD(self.yolov3.parameters(), lr=cfg.TRAIN["LR_INIT"],
+        #                            momentum=cfg.TRAIN["MOMENTUM"], weight_decay=cfg.TRAIN["WEIGHT_DECAY"])
+        self.optimizer = optim.Adam(self.yolov3.parameters(), lr = cfg.TRAIN["LR_INIT"])
 
         self.criterion = YoloV3Loss(anchors=cfg.MODEL["ANCHORS"], strides=cfg.MODEL["STRIDES"],
                                     iou_threshold_loss=cfg.TRAIN["IOU_THRESHOLD_LOSS"])

@@ -10,7 +10,7 @@ import config.yolov3_config_voc as cfg
 from utils.visualize import *
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]='0'
+os.environ["CUDA_VISIBLE_DEVICES"]='2'
 
 
 class Tester(object):
