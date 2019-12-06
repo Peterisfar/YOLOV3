@@ -9,10 +9,10 @@ Subsequently, i will continue to update the code, involving new papers and tips.
 ## Results
 
 
-| name | Train Dataset | Val Dataset | Params | Flops | Inference(CPU\|GPU) | mAP | notes |
+| name | Train Dataset | Val Dataset | Params | Flops | Inference(GPU) | mAP | notes |
 | :-----| :-----| :-----| :-----| :-----| :-----| :-----| :-----|
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 236M | - | - | 0.832 | darknet53 |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 27M | - | 15.2\|-ms | 0.792 | MobileNet-v2 & FPN(conv->dw+pw) |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 27M | - | 15.2ms | 0.792 | MobileNet-v2 & FPN(conv->dw+pw) |
 
 
 `Note` : 
