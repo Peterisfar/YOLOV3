@@ -9,10 +9,10 @@ Subsequently, i will continue to update the code, involving new papers and tips.
 ## Results
 
 
-| name | Train Dataset | Val Dataset | Params | Flops | Inference(CPU\|GPU) | mAP | notes |
+| name | Train Dataset | Val Dataset | Params | Flops | Inference(GPU) | mAP | notes |
 | :-----| :-----| :-----| :-----| :-----| :-----| :-----| :-----|
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 236M | - | - | 0.832 | darknet53 |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 27M | - | - | 0.792 | MobileNet-v2 & FPN(conv->dw+pw) |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 27M | - | 15.2ms | 0.792 | MobileNet-v2 & FPN(conv->dw+pw) |
 
 
 `Note` : 
@@ -69,7 +69,7 @@ python3 voc.py # get train_annotation.txt and test_annotation.txt in data/
 
 ### 3、Download weight file
 * MobileNet-V2 pre-trained weight :  [mobilenetv2_1.0-0c6065bc.pth](https://pan.baidu.com/s/1BwObvtGalF2R2iE3u-XqhQ) 
-* This repository test weight : [best_mobilenet_v2.pt](https://pan.baidu.com/s/1UHVSgqSg2OZhlcwAe-UJ8g)
+* This repository test weight : [best_mobilenet_v2.pt](https://pan.baidu.com/s/1-ssoREnTXmlfDcKcqus6NA)
 
 Make dir `weight/` in the YOLOV3 and put the weight file in.
 
