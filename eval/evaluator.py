@@ -11,6 +11,10 @@ import torch
 from utils.tools import *
 from tqdm import tqdm
 from utils.visualize import *
+import time
+
+
+current_milli_time = lambda: int(round(time.time() * 1000))
 
 
 class Evaluator(object):
@@ -27,6 +31,9 @@ class Evaluator(object):
 
         self.model = model
         self.device = next(model.parameters()).device
+
+        self.inference_time = 0.
+
 
     def APs_voc(self, multi_test=False, flip_test=False):
         img_inds_file = os.path.join(self.val_data_path,  'ImageSets', 'Main', 'test.txt')
@@ -67,7 +74,10 @@ class Evaluator(object):
                 with open(os.path.join(self.pred_result_path, 'comp4_det_test_' + class_name + '.txt'), 'a') as f:
                     f.write(s)
 
-        return self.__calc_APs()
+        # time
+        self.inference_time = 1.0 * self.inference_time / len(img_inds)
+
+        return self.__calc_APs(), self.inference_time
 
     def get_bbox(self, img, multi_test=False, flip_test=False):
         if multi_test:
@@ -95,7 +105,10 @@ class Evaluator(object):
         img = self.__get_img_tensor(img, test_shape).to(self.device)
         self.model.eval()
         with torch.no_grad():
+            start_time = current_milli_time()
             _, p_d = self.model(img)
+            self.inference_time += (current_milli_time() - start_time)
+
         pred_bbox = p_d.squeeze().cpu().numpy()
         bboxes = self.__convert_pred(pred_bbox, test_shape, (org_h, org_w), valid_scale)
 

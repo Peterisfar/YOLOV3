@@ -58,10 +58,10 @@ class Yolov3(nn.Module):
 
 
 if __name__ == '__main__':
-    net = Yolov3("../weight/mobilenetv2_1.0-0c6065bc.pth")
+    net = Yolov3()
     print(net)
 
-    in_img = torch.randn(12, 3, 416, 416)
+    in_img = torch.randn(1, 3, 544, 544)
     p, p_d = net(in_img)
 
     for i in range(3):

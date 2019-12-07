@@ -120,22 +120,22 @@ class Trainer(object):
                 mloss = (mloss * i + loss_items) / (i + 1)
 
                 # Print batch results
-                if i%10==0:
+                if i%100==0:
                     s = ('Epoch:[ %d | %d ]    Batch:[ %d | %d ]    loss_giou: %.4f    loss_conf: %.4f    loss_cls: %.4f    loss: %.4f    '
-                         'lr: %g') % (epoch, self.epochs - 1, i, len(self.train_dataloader) - 1, mloss[0],mloss[1], mloss[2], mloss[3],
+                         'lr: %.6f') % (epoch, self.epochs - 1, i, len(self.train_dataloader) - 1, mloss[0],mloss[1], mloss[2], mloss[3],
                                       self.optimizer.param_groups[0]['lr'])
                     print(s)
 
                 # multi-sclae training (320-608 pixels) every 10 batches
                 if self.multi_scale_train and (i+1)%10 == 0:
                     self.train_dataset.img_size = random.choice(range(10,20)) * 32
-                    print("multi_scale_img_size : {}".format(self.train_dataset.img_size))
+                    # print("multi_scale_img_size : {}".format(self.train_dataset.img_size))
 
             mAP = 0
             if epoch >= 20:
                 print('*'*20+"Validate"+'*'*20)
                 with torch.no_grad():
-                    APs = Evaluator(self.yolov3).APs_voc()
+                    APs, _ = Evaluator(self.yolov3).APs_voc()
                     for i in APs:
                         print("{} --> mAP : {}".format(i, APs[i]))
                         mAP += APs[i]
