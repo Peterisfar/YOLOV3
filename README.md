@@ -11,7 +11,7 @@ Subsequently, i will continue to update the code, involving new papers and tips.
 
 | name | Train Dataset | Val Dataset | Params | Flops | Inference(GPU) | mAP | notes |
 | :-----| :-----| :-----| :-----| :-----| :-----| :-----| :-----|
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 236M | - | - | 0.832 | darknet53 |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 236M | - | 23.87ms | 0.832 | darknet53 |
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 27M | - | 15.2ms | 0.792 | MobileNet-v2 & FPN(partly conv->dw+pw) |
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 27M | - | 16.31ms | 0.808 | MobileNet-v2 & FPN(generally conv->dw+pw) |
 
@@ -21,7 +21,8 @@ Subsequently, i will continue to update the code, involving new papers and tips.
 * YOLOV3-*-544 means test image size is 544. `"*"` means the multi-scale.
 * In the test, the nms threshold is 0.5 and the conf_score is 0.01.
 * Now only support the single gpu to train and test.
-
+* `There is basicallly no difference from the inference time on the gpu, but on the cpu depthwise conv of the pytorch is too slow.Now i don't have good way to test the time.`
+ 
 ---
 ## Environment
 
