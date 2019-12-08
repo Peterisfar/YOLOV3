@@ -12,7 +12,7 @@ Subsequently, i will continue to update the code, involving new papers and tips.
 | name | Train Dataset | Val Dataset | Params | Mult-Adds | Inference(GPU) | mAP | notes |
 | :-----| :-----| :-----| :-----| :-----| :-----| :-----| :-----|
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 61.63M | 55.94G | 23.87ms | 0.832 | darknet53 |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 27M | - | 15.2ms | 0.792 | MobileNet-v2 & FPN(partly conv->dw+pw) |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 6.77M | 6.45G | 15.2ms | 0.792 | MobileNet-v2 & FPN(partly conv->dw+pw) |
 | YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 6.84M | 6.51G | 16.31ms | 0.808 | MobileNet-v2 & FPN(generally conv->dw+pw) |
 
 
