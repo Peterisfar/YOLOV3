@@ -58,12 +58,15 @@ class Yolov3(nn.Module):
 
 
 if __name__ == '__main__':
+    from torchsummaryX import summary
+
     net = Yolov3()
     print(net)
 
     in_img = torch.randn(1, 3, 544, 544)
     p, p_d = net(in_img)
 
+    summary(net, in_img)
     for i in range(3):
         print(p[i].shape)
         print(p_d[i].shape)
