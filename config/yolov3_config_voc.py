@@ -42,6 +42,6 @@ TEST = {
         "NUMBER_WORKERS":0,
         "CONF_THRESH":0.01,
         "NMS_THRESH":0.5,
-        "MULTI_SCALE_TEST":True,
-        "FLIP_TEST":True
+        "MULTI_SCALE_TEST":False,
+        "FLIP_TEST":False
         }

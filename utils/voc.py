@@ -31,7 +31,7 @@ def parse_voc_annotation(data_path, file_type, anno_path, use_difficult_bbox=Fal
             objects = root.findall('object')
             for obj in objects:
                 difficult = obj.find("difficult").text.strip()
-                if (not use_difficult_bbox) and (difficult == 1): # difficult 表示是否容易识别，0表示容易，1表示困难
+                if (not use_difficult_bbox) and (int(difficult) == 1): # difficult 表示是否容易识别，0表示容易，1表示困难
                     continue
                 bbox = obj.find('bndbox')
                 class_id = classes.index(obj.find("name").text.lower().strip())
