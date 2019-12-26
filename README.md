@@ -25,7 +25,7 @@ Subsequently, i will continue to update the code to make it more concise , and a
 `Note` : 
 
 * YOLOV3-448-544 means train image size is 448 and test image size is 544. `"*"` means the multi-scale.
-* mAP(mine)'s format is (no_difficult mAP | use_difficult mAP).
+* mAP(mine)'s format is (use_difficult mAP | no_difficult mAP).
 * In the test, the nms threshold is 0.5(expect the last one) and the conf_score is 0.01.`others` nms threshold is 0.45(0.45 will increase the mAP)
 * Now only support the single gpu to train and test.
 
