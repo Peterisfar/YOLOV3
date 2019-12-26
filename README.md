@@ -1,7 +1,7 @@
 # YOLOV3
 ---
 # Introduction
-This is my own YOLOV3 written in pytorch, and is also the first time i have reproduced a object detection model.The dataset used is PASCAL VOC(not use difficulty). The eval tool is the voc2010. Now the mAP gains the goal score.
+This is my own YOLOV3 written in pytorch, and is also the first time i have reproduced a object detection model.The dataset used is PASCAL VOC. The eval tool is the voc2010. Now the mAP gains the goal score.
 
 Subsequently, i will continue to update the code to make it more concise , and add the new and efficient tricks.
 
@@ -13,20 +13,21 @@ Subsequently, i will continue to update the code to make it more concise , and a
 
 | name | Train Dataset | Val Dataset | mAP(others) | mAP(mine) | notes |
 | :----- | :----- | :------ | :----- | :-----| :-----|
-| YOLOV3-448-544 | 2007trainval + 2012trainval | 2007test | 0.769 | 0.768 | baseline(augument + step lr) |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.793 | 0.803 | \+multi-scale training |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.806 | 0.811 | \+focal loss(note the conf_loss in the start is lower) |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.808 | 0.813 | \+giou loss |
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.812 | 0.821 | \+label smooth |  
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.822 | 0.826 | \+mixup |  
-| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.833 | 0.832 | \+cosine lr |
-| YOLOV3-\*-* | 2007trainval + 2012trainval | 2007test | 0.858 | 0.858 | \+multi-scale test and flip |  
+| YOLOV3-448-544 | 2007trainval + 2012trainval | 2007test | 0.769 | 0.768 \| - | baseline(augument + step lr) |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.793 | 0.803 \| - | \+multi-scale training |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.806 | 0.811 \| - | \+focal loss(note the conf_loss in the start is lower) |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.808 | 0.813 \| - | \+giou loss |
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.812 | 0.821 \| - | \+label smooth |  
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.822 | 0.826 \| - | \+mixup |  
+| YOLOV3-\*-544 | 2007trainval + 2012trainval | 2007test | 0.833 | 0.832 \| 0.840 | \+cosine lr |
+| YOLOV3-\*-* | 2007trainval + 2012trainval | 2007test | 0.858 | 0.858 \| 0.860 | \+multi-scale test and flip, nms threshold is 0.45 |  
 
 `Note` : 
 
 * YOLOV3-448-544 means train image size is 448 and test image size is 544. `"*"` means the multi-scale.
-* In the test, the nms threshold is 0.5 and the conf_score is 0.01.
+* In the test, the nms threshold is 0.5(expect the last one) and the conf_score is 0.01.`others` nms threshold is 0.45(0.45 will increase the mAP)
 * Now only support the single gpu to train and test.
+
 
 ---
 ## Environment
@@ -35,7 +36,7 @@ Subsequently, i will continue to update the code to make it more concise , and a
 * CUDA10.0
 * CUDNN7.0
 * ubuntu 16.04
-
+* python 3.5
 ```bash
 # install packages
 pip3 install -r requirements.txt --user
@@ -76,7 +77,7 @@ python3 voc.py # get train_annotation.txt and test_annotation.txt in data/
 
 ### 3、Download weight file
 * Darknet pre-trained weight :  [darknet53-448.weights](https://pjreddie.com/media/files/darknet53_448.weights) 
-* This repository test weight : [best.pt](https://pan.baidu.com/s/1yR26emgdwhLcTaTIV0ecIA)
+* This repository test weight : [best.pt](https://pan.baidu.com/s/1MdE2zfIND9NYd9mWytMX8g)
 
 Make dir `weight/` in the YOLOV3 and put the weight file in.
 
@@ -99,7 +100,7 @@ CUDA_VISIBLE_DEVICES=0 nohup python3 -u train.py --weight_path $WEIGHT_PATH --gp
 
 ---
 ## Test
-You should define your weight file path `WEIGHT_FILE` and images file path `IMAGE_FILE`
+You should define your weight file path `WEIGHT_FILE` and test data's path `DATA_TEST`
 ```Bash
 WEIGHT_PATH=weight/best.pt
 DATA_TEST=./data/test # your own images
@@ -113,8 +114,9 @@ The images can be seen in the `data/`
 ## TODO
 
 * [ ] Mish
-* [ ] OctvConv
-* [ ] Mobilenet v1-v3
+* [ ] OctConv
+* [ ] Custom data
+
 
 ---
 ## Reference
